@@ -1,0 +1,37 @@
+name: der
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - pip
+
+  # ResDepth dependencies
+  - numpy
+  - scipy
+  - easydict
+  - pytorch
+  - cudatoolkit=11.3
+  - torchvision
+  - tensorboard
+  
+  # NN data ingestion and training
+  - torchgeo
+  - pytorch-lightning
+
+  # Raster and point cloud handling
+  - shapely
+  - rasterio
+  - rioxarray
+  - matplotlib
+  - matplotlib-scalebar
+  - pdal
+  - python-pdal
+  - gdal
+  - scikit-image
+
+  # Development tools
+  - jupyterlab
+
+  - pip:
+    - torchsummary # obsolete, but needed by Resdepth
+    - pygeotools # only used in tile prep, may remove
