@@ -10,28 +10,37 @@ dependencies:
   - scipy
   - easydict
   - pytorch
-  - cudatoolkit=11.3
+  - cudatoolkit=11.3 # no strong reason, just newer
   - torchvision
   - tensorboard
   
   # NN data ingestion and training
   - torchgeo
   - pytorch-lightning
+  
+  # Development tools
+  - jupyterlab
+
+  # Dataset visualization tools
+  - matplotlib
+  - matplotlib-scalebar
+  - streamlit
 
   # Raster and point cloud handling
   - shapely
   - rasterio
   - rioxarray
-  - matplotlib
-  - matplotlib-scalebar
   - pdal
   - python-pdal
   - gdal
   - scikit-image
-
-  # Development tools
-  - jupyterlab
+  - geopandas
+  - astropy
 
   - pip:
-    - torchsummary # obsolete, but needed by Resdepth
-    - pygeotools # only used in tile prep, may remove
+    - torchsummary # obsolete, but needed by ResDepth
+    # TODO careful with the dshean/uw-cryo packages 
+    # Initial dataset script expects these tools in PATH
+    # - pygeotools # only used in tile prep, may remove
+    # - demcoreg
+    # - more???
