@@ -8,6 +8,19 @@
 #Using example for Easton
 #Running on rfe bro node on Pleiades - Bus Error for longer PDAL command on pfe26
 
+
+# Inputs
+# ./pc_laz_prep_full.sh output_directory_suffix laz_url bounds
+echo $0 $1 $2 $3 $4 $5
+laz_full_path="$2" # reuse from local LAZ cache instead of downloading
+laz_fn=$(basename $laz_full_path) # when copying
+echo "$laz_fn"
+projwin="$3"
+pdal_bounds="$4"
+outdir="$5"
+
+
+
 #Assumes that input pair has been processed fully by ASP using MGM/SGM with mapproject
 if [ $# -eq 0 ]
   then
@@ -16,10 +29,12 @@ if [ $# -eq 0 ]
 fi
 set -x
 
+
+
 #topdir=. #/nobackupp17/deshean/baker_resdepth_20210917 #TODO SV
 topdir=/mnt/1.0_TB_VOLUME/sethv/shashank_data #/WV01_20150911_1020010042D39D00_1020010043455300
 pair=WV01_20150911_1020010042D39D00_1020010043455300
-outdir="/mnt/1.0_TB_VOLUME/sethv/shashank_data/pc_laz_prep_full_outputs_$1"
+# outdir="/mnt/1.0_TB_VOLUME/sethv/shashank_data/pc_laz_prep_full_outputs_$1"
 mkdir -p $outdir
 # outdir=$(ls -trd $topdir/$pair/dem* | tail -1)
 site=lower_easton3
@@ -28,7 +43,6 @@ cd $outdir
 # Copy script for reference
 echo "Saving copy of $(realpath $0) in output folder"
 cp "$(realpath $0)" "pc_laz_prep_full_as_run$(date -Iminutes).sh"
-
 
 $pwd
 mkdir -p $site
@@ -48,27 +62,43 @@ proj=EPSG:32610
 #Output grid res
 res=1.0
 
-#Output extent
-#Can extract directly from laz bounds
-#Slightly larger than laz tile
-#This is from QGIS
-projwin="584974 5397967 586025 5399032"
-#This is what gdal_translate expects (ulx uly lrx lry)
-projwin="584974 5399032 586025 5397967"
-#This is what PDAL expects
-pdal_bounds="([584974, 586025], [5397967, 5399032])"
+# #Output extent
+# #Can extract directly from laz bounds
+# #Slightly larger than laz tile
+# #This is from QGIS
+# projwin="584974 5397967 586025 5399032"
+# #This is what gdal_translate expects (ulx uly lrx lry)
+# projwin="584974 5399032 586025 5397967"
+# #This is what PDAL expects
+# pdal_bounds="([584974, 586025], [5397967, 5399032])"
 
-#Slightly smaller than laz tile
-projwin="585023 5398014 585982 5398985"
-projwin="585023 5398985 585982 5398014"
-pdal_bounds="([585023, 585982], [5398014, 5398985])"
-#TODO change back to above
-# Below is SV change for tile 8597
-projwin="585023 5397985 585982 5397014"
-pdal_bounds="([585023, 585982], [5397014, 5397985])"
-# Below is SV change for tile 8599
-projwin="585023 5399985 585982 5399014"
-pdal_bounds="([585023, 585982], [5399014, 5399985])"
+# #Slightly smaller than laz tile
+# projwin="585023 5398014 585982 5398985"
+# projwin="585023 5398985 585982 5398014"
+# pdal_bounds="([585023, 585982], [5398014, 5398985])"
+# #TODO change back to above
+# # Below is SV change for tile 8597
+# projwin="585023 5397985 585982 5397014"
+# pdal_bounds="([585023, 585982], [5397014, 5397985])"
+# # Below is SV change for tile 8599
+# projwin="585023 5399985 585982 5399014"
+# pdal_bounds="([585023, 585982], [5399014, 5399985])"
+# # Below is SV change for tile 8285
+# url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8285_LAS_2017.laz'
+# # have to extract from pdal info JSON
+# # projwin=json_dict["stats"]["bbox"]["native"]["bbox"]["maxx"]... # etc.
+# # probably have to round up or add 5-10 pixels of room
+# # UEV8910
+# 590000
+# projwin="582000 5385257 582726 5386000"
+# pdal_bounds="([582000, 582726], [5385257,5386000])"
+
+
+# url_3dep_laz="$2"
+# 
+
+# url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8599_LAS_2017.laz'
+
 
 #ASP PC 
 #For parallel_stereo this PC.tif is just a vrt
@@ -83,6 +113,8 @@ pc=$(basename $pc_path)
 if [ ! -e $site/${pc%.*}_crop.tif ] ; then 
     gdal_translate $gdal_opt -projwin $projwin $pc_path $site/${pc%.*}_crop.tif
 fi
+pwd
+ls
 
 #Crop original orthoimages (mapped on low-res ref DEM)
 #ortho_list=$(ls *ortho_*m.tif)
@@ -97,14 +129,18 @@ fi
 #Search 3DEP LidarExplorer, identify tile, get URL 
 #url_3dep_dtm='https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/OPR/WA_MtBaker_2015/USGS_NED_OPR_WA_MtBaker_2015_bh_10UEU8598_IMG_2017.zip'
 # url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8597_LAS_2017.laz'
-url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8599_LAS_2017.laz'
+# url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8599_LAS_2017.laz'
 # url_3dep_laz='https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/USGS_LPC_WA_MtBaker_2015_LAS_2017/laz/USGS_LPC_WA_MtBaker_2015_10UEU8598_LAS_2017.laz'
 #Remember, wget won't work from rfe, no connection to outside
 # wget -v -nc $url_3dep_laz
-laz_fn=$(basename $url_3dep_laz)
-if [ ! -e laz_fn ] ; then 
-    wget -v -nc $url_3dep_laz
-fi
+# laz_fn=$(basename $url_3dep_laz)
+# if [ ! -e laz_fn ] ; then 
+#     wget -v -nc $url_3dep_laz
+# fi
+
+
+# Copy from
+cp "$laz_full_path" "$laz_fn"
 
 #Should extract bounds from the tile and use that throughout
 #pdal info returns json with bbox dictionary, or boundary
@@ -200,6 +236,7 @@ point2dem --errorimage --no-dem --t_srs "${proj}" --t_projwin $projwin --tr $res
 pc_align_out=pc_align_tr/pc_align_tr
 pc_align $laz_fn ${pc%.*}_crop.tif --max-displacement 10 --compute-translation-only --save-transformed-source-points -o $pc_align_out 
 #For some reason, script exits after pc_align finishes.  Maybe error code issue?
+# TODO find why pc_align exit code
 
 #Convert aligned PC to LAZ
 point2las -c ${pc_align_out}-trans_source.tif
@@ -220,15 +257,13 @@ ba_out=$outdir/$site/${pc_align_out}_ba_rpc
 #latest ASP build has --apply-initial-transform-only, skips IP detection/matching
 
 
-pwd
 bundle_adjust *r100.tif *r100.xml -t rpc --datum WGS_1984 --initial-transform $outdir/$site/${pc_align_out}-transform.txt --apply-initial-transform-only -o $ba_out
+# each camera
+#metashape saves global transform
+#in ASP, each camera has a camera model that specifies its transform
+# 
 # bundle_adjust *r100.tif *r100.xml -t rpc --datum WGS_1984 --initial-transform $outdir/$site/${pc_align_out}-transform.txt --rotation-weight 1 --translation-weight 1000 --ip-per-tile 50 -o $ba_out # Shashank suggestion to adjust cameras among themselves, see https://sheanlab.slack.com/archives/G015UCB378Q/p1645211599895269?thread_ts=1645048078.776139&cid=G015UCB378Q
 # ip-per-tile 50 was another shashank suggestion to reduce runtime. Have to look up what this does
-
-
-
-
-
 
 #bundle_adjust *r100.tif *r100.xml -t rpc --datum WGS_1984 --initial-transform $outdir/$site/${pc_align_out}-transform.txt --num-iterations 0 -o $ba_out
 
@@ -269,8 +304,7 @@ echo "-------------------------------"
 echo "-------------------------------"
 echo "-------------------------------"
 echo "-------------------------------"
-ls
-#TODO why no hs_multi.tif???
+#TODO why no hs_multi.tif? Do we need to pass hillshades as an input vs the DEM itself?
 # fn_hs=$(ls *hs.tif *hs_multi.tif */*hs.tif */*hs_multi.tif)
 fn_hs=$(ls *hs.tif */*hs.tif)
 
@@ -279,10 +313,21 @@ fn_hs=$(ls *hs.tif */*hs.tif)
 fn_3dep_laz=$laz_fn
 #Aligned point cloud (LAZ)
 fn_asp_laz=${pc_align_out}-trans_source.laz
-zip -v -j ${site}.zip $fn_ortho $fn_trierr $fn_3dep_intensity $fn_3dep_dem $fn_asp_dem $fn_diff $fn_hs $fn_3dep_laz $fn_asp_laz
+
+# TODO DEM inpainting
+# fn_3dep_dem="USGS_LPC_WA_MtBaker_2015_10UEU8597_LAS_2017_32610_first_filt_v1.3_1.0m-DEM.tif"
+# fn_asp_dem="pc_align_tr/pc_align_tr-trans_source_1.0m-DEM.tif"
+# Just append a suffix to these filenames and save them also in the zip (if we are going that direction)
+# TODO find predictable relative path for hole filling script
+fn_3dep_dem_filled=${fn_3dep_dem%.*}_holes_filled.tif
+python /mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/ResDepth/torchgeo_experiments/hole_fill.py $fn_3dep_dem $fn_3dep_dem_filled
+fn_asp_dem_filled=${fn_asp_dem%.*}_holes_filled.tif
+python /mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/ResDepth/torchgeo_experiments/hole_fill.py $fn_asp_dem $fn_asp_dem_filled
+
+zip -v -j ${site}.zip $fn_ortho $fn_trierr $fn_3dep_intensity $fn_3dep_dem $fn_3dep_dem_filled $fn_asp_dem $fn_3dep_dem_filled $fn_diff $fn_hs $fn_3dep_laz $fn_asp_laz
 
 mkdir files_to_zip
-cp $fn_ortho $fn_trierr $fn_3dep_intensity $fn_3dep_dem $fn_asp_dem $fn_diff $fn_hs $fn_3dep_laz $fn_asp_laz files_to_zip/
+cp $fn_ortho $fn_trierr $fn_3dep_intensity $fn_3dep_dem $fn_3dep_dem_filled $fn_asp_dem $fn_asp_dem_filled $fn_diff $fn_hs $fn_3dep_laz $fn_asp_laz files_to_zip/
 
 # TODO Ross Beyer hole filling script works, ran separately, do it here instead
 # python hole_fill.py files_to_zip../../shashank_data/torchgeo_dataset/pc_laz_prep_full_outputs_20220314_easton_original_bounds/lower_easton3/files_to_zip/pc_align_tr-trans_source_1.0m-DEM.tif ../../shashank_data/torchgeo_dataset/pc_laz_prep_full_outputs_20220314_easton_original_bounds/lower_easton3/files_to_zip/pc_align_tr-trans_source_1.0m-DEM_hole_fill.tif 
@@ -290,3 +335,4 @@ cp $fn_ortho $fn_trierr $fn_3dep_intensity $fn_3dep_dem $fn_asp_dem $fn_diff $fn
 #scpput ${site}.zip /tmp/
 
 #Should export COG
+# TODO not doing that
