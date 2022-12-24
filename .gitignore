@@ -1,3 +1,24 @@
+# Project specific files and folders
+*.png
+runs/
+lightning_logs/
+tb_logs/
+checkpoints/
+*.ckpt
+
+# Geospatial files
+*.cpg
+*.dbf
+*.prj
+*.shp
+*.shx
+*.tif
+*.laz
+*.html
+*.csv
+*.txt
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
