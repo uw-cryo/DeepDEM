@@ -4,8 +4,6 @@ import os
 
 import numpy as np
 import math
-import matplotlib.pyplot as plt
-from matplotlib_scalebar.scalebar import ScaleBar
 
 import torch
 import torchvision
@@ -14,7 +12,6 @@ from torchgeo.samplers import GridGeoSampler  # appropriate for tile based datas
 from torchgeo.datasets import stack_samples
 
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose
 
 import rasterio
 from rasterio.transform import from_origin
@@ -28,7 +25,7 @@ from torchgeo_dataset import TGDSMOrthoDataset
 
 # Imports from train.py
 from train_utils import (
-    remove_bbox,
+    # remove_bbox,
     dsm_std,
     ortho_mean,
     ortho_std,
