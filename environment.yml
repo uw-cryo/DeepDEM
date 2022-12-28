@@ -10,7 +10,7 @@ dependencies:
   - scipy
   - easydict
   - pytorch
-  - cudatoolkit=11.3 # no strong reason, just newer
+  - cudatoolkit # latest - only package to remove for mac
   - torchvision
   - tensorboard
   
@@ -25,6 +25,7 @@ dependencies:
   - matplotlib
   - matplotlib-scalebar
   - streamlit
+  - folium
 
   # Raster and point cloud handling
   - shapely
@@ -39,7 +40,7 @@ dependencies:
 
   - pip:
     - torchsummary # obsolete, but needed by ResDepth
-    # TODO careful with the dshean/uw-cryo packages 
+    # TODO careful with the dshean/uw-cryo packages
     # Initial dataset script expects these tools in PATH
     # - pygeotools # only used in tile prep, may remove
     # - demcoreg
