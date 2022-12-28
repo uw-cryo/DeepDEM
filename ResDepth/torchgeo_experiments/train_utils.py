@@ -7,14 +7,26 @@ import numpy as np
 import torch
 
 # TODO hardcoded from 2021 experiments, should check if these are still appropriate
-dsm_mean_std = {"mean": None, "std": 33.336839170631755}
-dsm_std = dsm_mean_std["std"]
-ortho_mean_std = {"mean": 261.1999816894531, "std": 245.63670349121094}
-ortho_mean = ortho_mean_std["mean"]
-ortho_std = ortho_mean_std["std"]
+# dsm_mean_std = {"mean": None, "std": 33.336839170631755}
+# dsm_std = dsm_mean_std["std"]
+# ortho_mean_std = {"mean": 261.1999816894531, "std": 245.63670349121094}
+# ortho_mean = ortho_mean_std["mean"]
+# ortho_std = ortho_mean_std["std"]
+
+# Stats for the subset of tiles that excludes forest & other areas with very large errors
+# small_errors_only_mosaic_TRAIN_1020010042D39D00.r100_ortho_1.0m_ba.tif: mean=293.65, std=425.82
+# small_errors_only_mosaic_TRAIN_1020010043455300.r100_ortho_1.0m_ba.tif: mean=262.90, std=409.16
+# small_errors_only_mosaic_TRAIN_WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-IntersectionErr.tif: mean=0.12, std=0.15
+# small_errors_only_mosaic_TRAIN_WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM.tif: mean=1031.83, std=1016.49
+# small_errors_only_mosaic_TRAIN_USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif: mean=1052.88, std=1017.68
+dsm_std = 1016
+ortho_mean = 293
+ortho_std = 417
+trierror_mean = 0.12
+trierror_std = 0.15
 
 
-def plot_batch(inputs):
+def plot_batch(inputs, filename=None):
     """Visualize inputs to the NN just before ingestion"""
     inputs = inputs.cpu().numpy()
     batch_size = inputs.shape[0]
@@ -49,7 +61,10 @@ def plot_batch(inputs):
 
     timestamp = datetime.datetime.isoformat(datetime.datetime.now())
     os.makedirs("batches", exist_ok=True)
-    plt.savefig(f"batches/batch_{timestamp}.png")
+    if filename:
+        plt.savefig(filename)
+    else:
+        plt.savefig(f"batches/batch_{timestamp}.png")
     plt.close()
 
 
@@ -72,6 +87,17 @@ def hillshade(array, azimuth=315, angle_altitude=45):
     return 255 * (shaded + 1) / 2
 
 
+# def normalize_orthos_and_dsm(sample: Dict[str, Any]) -> Dict[str, Any]:
+#     """Apply the dsm and ortho normalization.
+
+#     Args:
+#         sample: dictionary from torchgeo
+
+#     Returns
+#         sample with normalized
+#     """
+
+
 def remove_bbox(sample: Dict[str, Any]) -> Dict[str, Any]:
     """Removes the bounding box property from a sample.
 
@@ -87,5 +113,6 @@ def remove_bbox(sample: Dict[str, Any]) -> Dict[str, Any]:
 
 def call_model(model, model_input_tensor: torch.Tensor):
     """Helper: given pytorch model & input rasters, return model output as numpy array"""
-    tile_output = model(model_input_tensor).detach().numpy().squeeze()
+    # tile_output = model(model_input_tensor).detach().numpy().squeeze()
+    tile_output = model(model_input_tensor).squeeze()
     return tile_output
