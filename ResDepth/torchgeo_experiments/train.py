@@ -1,6 +1,8 @@
 """Training script for ResDepth model"""
+# Usage: python train.py <checkpoint_to_resume_from>
 import os
 import random
+import sys
 
 import numpy as np
 import torch
@@ -32,7 +34,16 @@ random.seed(1)
 
 if __name__ == "__main__":
     # Load dataset from this folder
-    directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/tile_stacks_prelim_west_half_baker_mapproject_w_asp_refdem_11OCT2022"
+    # train_directory = (
+    #     "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg"
+    # )
+    # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg/"
+
+    # try with mosaic of above-treeline tiles
+    train_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
+    val_directory = (
+        "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
+    )
 
     train_transforms = Compose([remove_bbox])
 
@@ -40,55 +51,108 @@ if __name__ == "__main__":
         "dsm",
         "ortho_left",
         "ortho_right",
+        "triangulation_error",
         "nodata_mask",
-    ]  # skip "nodata_mask"
+    ]
 
-    dataset = TGDSMOrthoDataset(
-        root=directory,
+    train_dataset = TGDSMOrthoDataset(
+        root=train_directory,
+        split="train",
+        transforms=train_transforms,
+        input_layers=input_layers,
+    )
+    val_dataset = TGDSMOrthoDataset(
+        root=val_directory,
         split="train",
         transforms=train_transforms,
         input_layers=input_layers,
     )
 
-    print(f"Length of dataset: {len(dataset)}")
+    print(f"Length of dataset: {len(train_dataset)}")
+    print(f"Length of val dataset: {len(val_dataset)}")
 
-    # Set up dataloader
+    # Set up dataloaders for train & validation datasets
 
     BATCH_SIZE = 20
-    sampler = RandomBatchGeoSampler(
-        dataset, batch_size=BATCH_SIZE, size=TILE_SIZE, length=5000
+    train_sampler = RandomBatchGeoSampler(
+        train_dataset, batch_size=BATCH_SIZE, size=TILE_SIZE, length=5000
     )
-    dataloader = DataLoader(
-        dataset, batch_sampler=sampler, collate_fn=stack_samples, num_workers=20
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_sampler=train_sampler,
+        collate_fn=stack_samples,
+        num_workers=BATCH_SIZE,
+    )
+
+    # TODO want gridgeosampler but wasn't working?
+    val_sampler = RandomBatchGeoSampler(
+        val_dataset, batch_size=BATCH_SIZE, size=TILE_SIZE, length=500
+    )
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_sampler=val_sampler,
+        collate_fn=stack_samples,
+        num_workers=BATCH_SIZE,
     )
 
     # Set up experiment tracking
-
     # TODO make more complete log of hyperparameters, which dataset used, etc.
     logger = TensorBoardLogger("tb_logs", name="resdepth_torchgeo")
 
     checkpoints_dir = os.path.join(logger.log_dir, "checkpoints")
     checkpoint_callback = ModelCheckpoint(
-        monitor="loss",  # TODO use val_loss
+        monitor="val_loss",  # TODO use val_loss
         dirpath=checkpoints_dir,
+        every_n_epochs=25,  # save regularly to animate the changes in refinement quality over time
         save_top_k=5,
         save_last=True,
     )
 
     device_stats = DeviceStatsMonitor()
 
+    no_logs = False
+    if len(sys.argv) == 2 and sys.argv[1] == "--no-logs":
+        no_logs = True
+
+    if no_logs:
+        # dry runs for testing
+        logger = None
+        callbacks = None
+    else:
+        callbacks = [checkpoint_callback, device_stats]
+
     trainer = Trainer(
+        max_epochs=-1,  # infinite
         accelerator="gpu",
         devices=1,
         logger=logger,
-        callbacks=[checkpoint_callback, device_stats],
+        callbacks=callbacks,
     )
 
     # Initialize the model
-    model = TGDSMLightningModule(n_input_channels=len(input_layers))
+    checkpoint = None
+    checkpoint_fn = None
+    if len(sys.argv) == 2 and not no_logs:
+        checkpoint_fn = sys.argv[1]
+        checkpoint = torch.load(checkpoint_fn)
+        print("Want to resume from", checkpoint_fn)
 
-    # Train model
-    # TODO add validation code!
-    trainer.fit(model, train_dataloaders=dataloader)
+    # TODO specify other parameters as command line args
+
+    # model = TGDSMLightningModule(n_input_channels=len(input_layers), lr=0.00002)
+    model = TGDSMLightningModule(
+        n_input_channels=len(input_layers),
+        normalization="meanstd",
+        lr=1e-5,
+        loss_fn=torch.nn.MSELoss,
+    )
+
+    # Train model (until interrupted, unless number of epochs is specified)
+    trainer.fit(
+        model,
+        ckpt_path=checkpoint_fn,  # can do this way if resuming (not changing LR)
+        train_dataloaders=train_dataloader,
+        val_dataloaders=val_dataloader,
+    )
 
     print("Finished training")
