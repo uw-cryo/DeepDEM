@@ -1,8 +1,10 @@
 name: der
 channels:
   - pytorch
+  - nvidia
   - conda-forge
 dependencies:
+  # Python basics
   - pip
 
   # ResDepth dependencies
@@ -10,12 +12,12 @@ dependencies:
   - scipy
   - easydict
   - pytorch
-  - cudatoolkit # latest - only package to remove for mac
+  - pytorch-cuda  # needed for GPU, remove for Mac
   - torchvision
   - tensorboard
   
   # NN data ingestion and training
-  - torchgeo
+  - torchgeo>=0.3.1
   - pytorch-lightning
   
   # Development tools
@@ -39,9 +41,14 @@ dependencies:
   - astropy
 
   - pip:
+    - black # code formatting
     - torchsummary # obsolete, but needed by ResDepth
-    # TODO careful with the dshean/uw-cryo packages
-    # Initial dataset script expects these tools in PATH
-    # - pygeotools # only used in tile prep, may remove
-    # - demcoreg
-    # - more???
+
+# TODO Ames Stereo Pipeline is not included
+
+# TODO careful when using dshean/uw-cryo packages (not specified here)
+# Initial dataset script expects these tools in PATH
+# - pygeotools # only used in tile prep, may remove
+# - demcoreg # dem_mask.py useful to mask point cloud
+# - gdal_tools
+# - more???
