@@ -79,7 +79,6 @@ class TGDSMOrthoDataset(GeoDataset):
             AssertionError: if ``split`` is invalid
         """
         super().__init__(transforms=transforms)
-        assert split == "train"  # TODO make "val" "test" usable
         self.root = root
         self.split = split
         self.transforms = transforms
@@ -129,7 +128,8 @@ class TGDSMOrthoDataset(GeoDataset):
         # Update 6/2022 not sure what that bug was
         # TODO 7/2022 it is still there
         # ortho_left_fn = self._load_image(files["ortho_left"])
-        # UPDATE This was orthoimage bounds related... off by 1 when creating tiffs...
+        # UPDATE This was orthoimage bounds related... off by 1 when creating the rasters.
+        # Problem should be eliminated in the move away from 1km^2 tile-based datasets.
 
         # TODO find the union of the nodata masks for each input & pass this info to NN
 
@@ -144,7 +144,6 @@ class TGDSMOrthoDataset(GeoDataset):
 
             # Try rasterio fill for the small gaps in orthoimages
             ortho_left = rasterio.fill.fillnodata(ortho_left_unfilled)
-            # print(f"Ortho left mean = {ortho_left.mean()}")
 
         with rasterio.open(files["ortho_right"]) as ortho_right_full:
             ortho_right_unfilled = ortho_right_full.read(
@@ -164,10 +163,21 @@ class TGDSMOrthoDataset(GeoDataset):
                 window=rasterio.windows.from_bounds(
                     minx, miny, maxx, maxy, initial_dem_full.transform
                 ),
+                masked=False,  # initial DEM cannot have nodata holes
             )
+
+            # TODO try removing temporal offset from initial dem snow /ice melt in training
 
         with rasterio.open(files["initial_dem_unfilled"]) as initial_dem_unfilled_full:
             initial_dem_unfilled = initial_dem_unfilled_full.read(
+                1,
+                window=rasterio.windows.from_bounds(
+                    minx, miny, maxx, maxy, initial_dem_unfilled_full.transform
+                ),
+                masked=True,
+            )
+            # Read in the nodata mask for the initial DEM (i.e. the raster before it was inpainted)
+            nodata_mask = initial_dem_unfilled_full.read_masks(
                 1,
                 window=rasterio.windows.from_bounds(
                     minx, miny, maxx, maxy, initial_dem_unfilled_full.transform
@@ -183,20 +193,6 @@ class TGDSMOrthoDataset(GeoDataset):
                 ),
             )
             tri_error = rasterio.fill.fillnodata(tri_error)
-
-        # Goal of mask: inform the network of pixels that are missing data in DEM raster
-        nodata_mask = np.isnan(initial_dem_unfilled)
-        # TODO May want multiple nodata masks in the future
-
-        if self.split == "train":
-            # Retrieve Ground Truth e.g. lidar DEM
-            with rasterio.open(files["target"]) as target_full:
-                target = target_full.read(
-                    1,
-                    window=rasterio.windows.from_bounds(
-                        minx, miny, maxx, maxy, target_full.transform
-                    ),
-                )
 
         sample = {"crs": self.crs, "bbox": query}
 
@@ -226,10 +222,23 @@ class TGDSMOrthoDataset(GeoDataset):
             self.PATCH_SIZE,
         ), f"Wrong sized patch for query {query}: dem_mask = f{nodata_mask.shape}"
 
-        assert target.shape == (
-            self.PATCH_SIZE,
-            self.PATCH_SIZE,
-        ), f"Wrong sized patch for query {query}: target = f{target.shape}"
+        if self.split == "train":
+            # Retrieve Ground Truth e.g. lidar DEM
+            with rasterio.open(files["target"]) as target_full:
+                target = target_full.read(
+                    1,
+                    window=rasterio.windows.from_bounds(
+                        minx, miny, maxx, maxy, target_full.transform
+                    ),
+                    masked=True,  # lidar DEM should not have holes
+                )
+
+            assert target.shape == (
+                self.PATCH_SIZE,
+                self.PATCH_SIZE,
+            ), f"Wrong sized patch for query {query}: target = f{target.shape}"
+
+            sample["target"] = torch.from_numpy(target)
 
         # TODO make checking & stacking work properly for different layer combinations
         # i.e. a dict of input layer -> array and then stack with a list comprehension
@@ -246,8 +255,6 @@ class TGDSMOrthoDataset(GeoDataset):
             sample["inputs"] = torch.from_numpy(
                 np.stack([initial_dem, ortho_left, ortho_right], axis=0)
             )
-
-        sample["target"] = torch.from_numpy(target)
 
         if self.transforms is not None:
             sample = self.transforms(sample)
@@ -269,46 +276,37 @@ class TGDSMOrthoDataset(GeoDataset):
         Returns:
             list of dicts containing paths for each pair of image/dem/mask
         """
-        directory = self.root
-        # TODO need to differentiate between left & right orthoimages???
-        pattern = os.path.join(
-            directory,
-            "**",
-            "files_to_zip",
-            self.initial_dem_root
-        )
-        print("Initial DEM pattern:", pattern)
-        initial_dems = glob.glob(pattern, recursive=True)
-
+        directories = self.root
+        if not isinstance(directories, list):
+            directories = [directories]
         files = []
-        print("Adding files to list & spatial index...")
-        initial_dems_str = "\n".join(initial_dems)
-        print(f"Have {len(initial_dems)} tiles")
-
-        for i, initial_dem in enumerate(sorted(initial_dems)):
-
-            initial_dem_unfilled = initial_dem.replace(
-                self.initial_dem_root, self.initial_dem_unfilled_root
+        for directory in directories:
+            # TODO need to differentiate between left & right orthoimages???
+            pattern = os.path.join(
+                directory, "**", "files_to_zip", self.initial_dem_root
             )
-            ortho_left = initial_dem.replace(
-                self.initial_dem_root, self.ortho_left_root
-            )
-            ortho_right = initial_dem.replace(
-                self.initial_dem_root, self.ortho_right_root
-            )
+            print("Initial DEM pattern:", pattern)
+            initial_dems = glob.glob(pattern, recursive=True)
 
-            triangulation_error = initial_dem.replace(
-                self.initial_dem_root, self.triangulation_error_root
-            )
+            print("Adding files to list & spatial index...")
+            initial_dems_str = "\n".join(initial_dems)
+            print(f"Have {len(initial_dems)} tiles")
 
-            if self.split == "train":
-                target = initial_dem.replace(self.initial_dem_root, self.target_root)
-                # print("Target glob pattern:", target)
-                target_paths = glob.glob(target)
-                assert (
-                    len(target_paths) == 1
-                ), f"Should have exactly 1 ground truth DEM, got {target_paths}"
-                target = target_paths[0]
+            for i, initial_dem in enumerate(sorted(initial_dems)):
+
+                initial_dem_unfilled = initial_dem.replace(
+                    self.initial_dem_root, self.initial_dem_unfilled_root
+                )
+                ortho_left = initial_dem.replace(
+                    self.initial_dem_root, self.ortho_left_root
+                )
+                ortho_right = initial_dem.replace(
+                    self.initial_dem_root, self.ortho_right_root
+                )
+
+                triangulation_error = initial_dem.replace(
+                    self.initial_dem_root, self.triangulation_error_root
+                )
 
                 tile_dict = dict(
                     ortho_left=ortho_left,
@@ -316,10 +314,21 @@ class TGDSMOrthoDataset(GeoDataset):
                     initial_dem=initial_dem,
                     initial_dem_unfilled=initial_dem_unfilled,
                     triangulation_error=triangulation_error,
-                    target=target,
                 )
+
+                if self.split == "train":
+                    target = initial_dem.replace(
+                        self.initial_dem_root, self.target_root
+                    )
+                    # print("Target glob pattern:", target)
+                    target_paths = glob.glob(target)
+                    assert (
+                        len(target_paths) == 1
+                    ), f"Should have exactly 1 ground truth DEM, got {target_paths}"
+                    target = target_paths[0]
+                    tile_dict["target"] = target
+
                 files.append(tile_dict)
-                # pprint.pprint(tile_dict)
 
                 with rasterio.open(ortho_left) as f:
                     minx, miny, maxx, maxy = f.bounds
@@ -331,11 +340,7 @@ class TGDSMOrthoDataset(GeoDataset):
                 # Add files to spatial index
                 self.index.insert(i, coords, tile_dict)
 
-                # print(f"Added {i} for {coords} with tile_dict:")
-                # pprint.pprint(tile_dict, indent=2)
-            else:
-                raise NotImplementedError  # test mode not implemented yet
-
+        print(f"Created dataset with {len(files)} tiles")
         return files
 
     def plot(
