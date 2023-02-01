@@ -110,7 +110,7 @@ class TGDSMLightningModule(LightningModule):
             # leave the mask alone, 0 or 1
             normalized_inputs[:, 4] = x[:, 4]
 
-            # print(x[:,0].mean(), "mean of input DSM before normalization")
+            # Forward pass of model
             out = self.unet(normalized_inputs)
 
             # Reverse DSM denormalization on the way out
@@ -145,18 +145,14 @@ class TGDSMLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         """Take one training step and compute the loss"""
-        output = self(batch["inputs"])
-        val_loss = self.loss(output.squeeze(), batch["target"].squeeze())
-
-        # Log all metrics
-        # How to get these to show up aggregated at end of each epoch???
-        self.log(
-            "val_loss",
-            val_loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
+        output = self(batch["inputs"]).squeeze()
+        target = batch["target"].squeeze()
+        val_loss = self.loss(output, target)
+        l1_loss = torch.nn.L1Loss()(output, target)
+        l2_loss = torch.nn.MSELoss()(output, target)
+        val_metrics = dict(val_loss=val_loss, val_l1_loss=l1_loss, val_l2_loss=l2_loss)
+        self.log_dict(
+            val_metrics, prog_bar=True, logger=True, on_step=True, on_epoch=True
         )
 
         return val_loss
