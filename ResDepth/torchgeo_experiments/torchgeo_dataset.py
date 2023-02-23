@@ -192,6 +192,7 @@ class TGDSMOrthoDataset(GeoDataset):
                     minx, miny, maxx, maxy, tri_error_full.transform
                 ),
             )
+
             tri_error = rasterio.fill.fillnodata(tri_error)
 
         sample = {"crs": self.crs, "bbox": query}
@@ -222,7 +223,7 @@ class TGDSMOrthoDataset(GeoDataset):
             self.PATCH_SIZE,
         ), f"Wrong sized patch for query {query}: dem_mask = f{nodata_mask.shape}"
 
-        if self.split == "train":
+        if self.split == "train" or self.split == "val":
             # Retrieve Ground Truth e.g. lidar DEM
             with rasterio.open(files["target"]) as target_full:
                 target = target_full.read(
@@ -316,7 +317,7 @@ class TGDSMOrthoDataset(GeoDataset):
                     triangulation_error=triangulation_error,
                 )
 
-                if self.split == "train":
+                if self.split == "train" or self.split == "val":
                     target = initial_dem.replace(
                         self.initial_dem_root, self.target_root
                     )
@@ -332,6 +333,7 @@ class TGDSMOrthoDataset(GeoDataset):
 
                 with rasterio.open(ortho_left) as f:
                     minx, miny, maxx, maxy = f.bounds
+
                     # Used in chesapeake.py, but we don't care about time yet
                     mint: float = 0
                     maxt: float = sys.maxsize

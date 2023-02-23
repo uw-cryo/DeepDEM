@@ -16,7 +16,7 @@ class TGDSMLightningModule(LightningModule):
 
     def __init__(
         self,
-        n_input_channels,
+        n_input_channels=5,
         lr=0.00002,
         weight_decay=1e-5,
         checkpoint=None,
