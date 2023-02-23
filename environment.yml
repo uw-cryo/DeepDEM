@@ -3,9 +3,13 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
+  - defaults
 dependencies:
   # Python basics
   - pip
+
+  # Skip Ames Stereo Pipeline (ASP) - install separately due to package conflicts
+  # - stereo-pipeline==3.2.0
 
   # ResDepth dependencies
   - numpy
@@ -17,7 +21,7 @@ dependencies:
   - tensorboard
   
   # NN data ingestion and training
-  - torchgeo>=0.3.1
+  - torchgeo>=0.4.0
   - pytorch-lightning
   
   # Development tools
@@ -28,6 +32,7 @@ dependencies:
   - matplotlib-scalebar
   - streamlit
   - folium
+  - contextily
 
   # Raster and point cloud handling
   - shapely
@@ -42,13 +47,12 @@ dependencies:
 
   - pip:
     - black # code formatting
-    - torchsummary # obsolete, but needed by ResDepth
+    - torchsummary # obsolete, but needed by ResDepth (Stucker implementation)
+    - x-unet # included to test enhanced UNet models
 
-# TODO Ames Stereo Pipeline is not included
-
-# TODO careful when using dshean/uw-cryo packages (not specified here)
-# Initial dataset script expects these tools in PATH
+# TODO careful when using dshean/uw-cryo packages (not specified here, install from source)
+# Dataset processing script expects these tools in PATH
 # - pygeotools # only used in tile prep, may remove
 # - demcoreg # dem_mask.py useful to mask point cloud
-# - gdal_tools
-# - more???
+# - dgtools
+# - imview?
