@@ -45,6 +45,7 @@ if __name__ == "__main__":
     val_directory = (
         "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
     )
+    val_directory_name = os.path.basename(val_directory)
 
     print("Loading validation dataset")
     input_layers = [
@@ -104,7 +105,7 @@ if __name__ == "__main__":
 
     bboxes = []
     num_examples = 0
-    num_to_evaluate = 20
+    num_to_evaluate = 100
     limit = 20
 
     # 
@@ -114,7 +115,9 @@ if __name__ == "__main__":
     with torch.no_grad():
         for b, patch in enumerate(dataloader):
             print("On patch", b)
-            print(f"{b} {patch['bbox']}")
+            assert len(patch["bbox"]) == 1
+            bbox = patch['bbox'][0]
+            print(f"{b} {bbox}")
             num_examples += 1
             if num_examples > num_to_evaluate:
                 break
@@ -172,11 +175,11 @@ if __name__ == "__main__":
             ncols = 4
             fig, ax = plt.subplots(3, 4, figsize=(ncols * 4, nrows * 4 + 2), squeeze=False)
             plt.suptitle(
-                f"Validation tiles: patch of size {image.shape[0]} \nCheckpoint: {ckpt}\nDataset: {val_directory}"  # , Tiles=???"
+                f"Validation tiles: patch of width {image.shape[2]} pixels\nCheckpoint: {ckpt}\nDataset: {val_directory_name}\nCoordinates (minx, miny) = ({bbox.minx:.0f}, {bbox.miny:.0f})"  # , Tiles=???"
             )
 
             # TODO do rest of loop
-            plt.rcParams["figure.dpi"] = 300
+            plt.rcParams["figure.dpi"] = 500
 
             ax = ax.reshape((1, -1))
 
@@ -204,7 +207,7 @@ if __name__ == "__main__":
                 im = ax[i][0].imshow(
                     image[i][1].numpy().squeeze(), cmap="gray", rasterized=True
                 )
-                ax[i][0].set_title("ortho nadir")
+                ax[i][0].set_title("ortho more nadir")
                 plt.colorbar(im, ax=ax[i][0], fraction=0.04)
 
                 # Include scalebar
@@ -214,7 +217,7 @@ if __name__ == "__main__":
                 im = ax[i][1].imshow(
                     image[i][2].numpy().squeeze(), cmap="gray", rasterized=True
                 )
-                ax[i][1].set_title("ortho off-nadir")
+                ax[i][1].set_title("ortho further off-nadir")
                 plt.colorbar(im, ax=ax[i][1], fraction=0.04)
 
                 # Show shaded relief maps (color hillshades) of input & lidar DEMs
@@ -337,8 +340,7 @@ if __name__ == "__main__":
                 )
 
                 # 12th figure?
-                range_str = f"gt range [{gt_dem.min():.1f}, {gt_dem.max():.1f}]\noutput range [{output_dem.min():.1f},{output_dem.max():.1f}]"
-                ax[i][11].set_title(range_str)
+                ax[i][11].set_title("Statistics")
                 bb = patch["bbox"][0]
                 bbox_str = f"minx={bb.minx:.0f}, miny={bb.miny:.0f}"
                 ax[i][11].text(
@@ -394,6 +396,29 @@ if __name__ == "__main__":
                     l2_loss_str,
                     va="top",
                     color="blue",
+                    transform=ax[i][11].transAxes,
+                    fontsize=12,
+                )
+
+                gt_range_str = f"Lidar GT range (m) [{gt_dem.min():.1f}, {gt_dem.max():.1f}]"
+                output_range_str = f"Output range (m) [{output_dem.min():.1f},{output_dem.max():.1f}]"
+
+                ax[i][11].text(
+                    0.05,
+                    0.45,
+                    gt_range_str,
+                    va="top",
+                    color="black",
+                    transform=ax[i][11].transAxes,
+                    fontsize=12,
+                )
+
+                ax[i][11].text(
+                    0.05,
+                    0.35,
+                    output_range_str,
+                    va="top",
+                    color="black",
                     transform=ax[i][11].transAxes,
                     fontsize=12,
                 )
