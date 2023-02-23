@@ -5,6 +5,8 @@ import os
 import numpy as np
 import math
 
+from tqdm import tqdm
+
 import torch
 import torchvision
 
@@ -44,29 +46,67 @@ if __name__ == "__main__":
         output_filename = sys.argv[3]
     else:
         output_filename = "inference_out.tif"
+    if len(sys.argv) > 4:
+        model_used = sys.argv[4]
+    else:
+        model_used = "stucker_unet"
 
     resdepth_state_dict = torch.load(ckpt)
-
-    print("Loaded model from epoch", resdepth_state_dict["epoch"])
-    model_args = {
-        "n_input_channels": 5,
-        "start_kernel": 64,
-        "depth": 5,
-        "act_fn_encoder": "relu",
-        "act_fn_decoder": "relu",
-        "act_fn_bottleneck": "relu",
-        "up_mode": "transpose",
-        "do_BN": True,
-        "outer_skip": True,
-        "outer_skip_BN": False,
-        "bias_conv_layer": True,
-    }
-    checkpoint_model = UNet(**model_args)
-
     device = torch.device("cuda")
-    checkpoint_model.load_state_dict(
-        {k[5:]: v for k, v in resdepth_state_dict["state_dict"].items()},
-    )  # cut off the 'unet.' in state dict???
+
+    if model_used == "stucker_unet":
+        print("Loading model from epoch", resdepth_state_dict["epoch"])
+        model_args = {
+            "n_input_channels": 5,
+            "start_kernel": 64,
+            "depth": 5,
+            "act_fn_encoder": "relu",
+            "act_fn_decoder": "relu",
+            "act_fn_bottleneck": "relu",
+            "up_mode": "transpose",
+            "do_BN": True,
+            "outer_skip": True,
+            "outer_skip_BN": False,
+            "bias_conv_layer": True,
+        }
+        checkpoint_model = UNet(**model_args)
+
+        checkpoint_model.load_state_dict(
+            {k[5:]: v for k, v in resdepth_state_dict["state_dict"].items()},
+        )  # cut off the 'unet.' in state dict???
+    elif model_used == "xunet":
+        from x_unet import XUnet
+
+        class XUnetWithSkipConnection(XUnet):
+            """Add Stucker et al residual connection from UNet initial input DSM to the output, so that network learns to compute the residual correction"""
+
+            def forward(self, x):
+                residual = super().forward(x)
+                x_0 = x[:, 0, :, :]  # initial DSM passed in to the network
+                x_0 = x_0.unsqueeze(1)
+
+                return x_0 + residual
+
+        x_unet = XUnetWithSkipConnection
+        x_unet_args = dict(
+            dim=64,
+            channels=5,
+            out_dim=1,
+            dim_mults=(1, 2, 4, 8),
+            nested_unet_depths=(
+                7,
+                4,
+                2,
+                1,
+            ),  # nested unet depths, from unet-squared paper
+            consolidate_upsample_fmaps=True,  # whether to consolidate outputs from all upsample blocks, used in unet-squared paper
+        )
+
+        checkpoint_model = XUnetWithSkipConnection(**x_unet_args)
+        checkpoint_model.load_state_dict(
+            {k[5:]: v for k, v in resdepth_state_dict["state_dict"].items()},
+        )  # cut off the 'unet.' in state dict???
+
     checkpoint_model.eval()
     checkpoint_model.to(device)
 
@@ -77,8 +117,16 @@ if __name__ == "__main__":
         train_transforms = None  # Compose([remove_bbox])
         # VALIDATION
         # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
-        val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
-        print("Loading dataset", val_directory)
+        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
+        val_directory = [
+            "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg",
+            "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg",
+        ]
+
+        # TODO single large raster inference almost works except for bug with rio.fillnodata
+        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/ResDepth/torchgeo_experiments/mosaic"
+
+        print("Loading dataset(s)", val_directory)
 
         input_layers = [
             "dsm",
@@ -90,9 +138,10 @@ if __name__ == "__main__":
 
         dataset = TGDSMOrthoDataset(
             root=val_directory,
-            split="train",
+            split="test",
             transforms=train_transforms,
             input_layers=input_layers,
+            PATCH_SIZE=TILE_SIZE,
         )
         print("Dataset bounds", dataset.bounds)  # torchgeo stores bounds
         minx, miny, maxx, maxy = (
@@ -119,7 +168,17 @@ if __name__ == "__main__":
             dataset, sampler=sampler, collate_fn=stack_samples, num_workers=1  # 20
         )
 
-        val_output_dir = f"{os.path.basename(val_directory)}_{os.path.basename(ckpt)}"
+        if isinstance(val_directory, str):
+            val_output_dir = (
+                f"{os.path.basename(val_directory)}_{os.path.basename(ckpt)}"
+            )
+        elif isinstance(val_directory, list):
+            basenames = [os.path.basename(d) for d in val_directory]
+            concatenated_dirs = "+".join(basenames)
+            val_output_dir = f"{concatenated_dirs}_{os.path.basename(ckpt)}"
+        else:
+            raise NotImplementedError
+
         os.makedirs(val_output_dir, exist_ok=True)
         print("output directory: ", val_output_dir)
 
@@ -129,7 +188,7 @@ if __name__ == "__main__":
 
         # TODO add tqdm
         print("Running inference on each patch in dataset...")
-        for b, patch in enumerate(dataloader):
+        for b, patch in enumerate(tqdm(dataloader)):
             assert len(patch["bbox"]) == 1, "batch size should be 1"
             bbox = patch["bbox"][0]
             bboxes.extend(
@@ -172,7 +231,8 @@ if __name__ == "__main__":
                     trierror_mean, trierror_std
                 )(inputs[:, 3])
 
-                # no normalization for the nodata mask layer 3
+                # no normalization for the nodata mask layer 4
+                normalized_inputs[:, 4] = patch["inputs"][:, 4]
 
                 output = call_model(checkpoint_model, normalized_inputs)
                 output = output.cpu()
