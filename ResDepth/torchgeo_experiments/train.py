@@ -34,12 +34,12 @@ random.seed(1)
 
 if __name__ == "__main__":
     # Load dataset from this folder
-    # train_directory = (
-    #     "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg"
-    # )
-    # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg/"
+    train_directory = (
+        "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg"
+    )
+    val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg/"
 
-    # try with mosaic of above-treeline tiles
+    # Instead try with mosaic of above-treeline tiles
     train_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
     val_directory = (
         "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     # Set up dataloaders for train & validation datasets
 
     BATCH_SIZE = 20
+    NUM_WORKERS = 20
     train_sampler = RandomBatchGeoSampler(
         train_dataset, batch_size=BATCH_SIZE, size=TILE_SIZE, length=5000
     )
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         train_dataset,
         batch_sampler=train_sampler,
         collate_fn=stack_samples,
-        num_workers=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
     )
 
     # TODO want gridgeosampler but wasn't working?
@@ -92,7 +93,7 @@ if __name__ == "__main__":
         val_dataset,
         batch_sampler=val_sampler,
         collate_fn=stack_samples,
-        num_workers=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
     )
 
     # Set up experiment tracking
@@ -100,12 +101,20 @@ if __name__ == "__main__":
     logger = TensorBoardLogger("tb_logs", name="resdepth_torchgeo")
 
     checkpoints_dir = os.path.join(logger.log_dir, "checkpoints")
-    checkpoint_callback = ModelCheckpoint(
-        monitor="val_loss",  # TODO use val_loss
+
+    # Save the 5 best models
+    best_checkpoints_callback = ModelCheckpoint(
+        monitor="val_loss",
         dirpath=checkpoints_dir,
-        every_n_epochs=25,  # save regularly to animate the changes in refinement quality over time
         save_top_k=5,
         save_last=True,
+    )
+
+    # Also save checkpoints at regular intervals
+    regular_checkpoints_callback = ModelCheckpoint(
+        monitor="val_loss",
+        dirpath=checkpoints_dir,
+        every_n_epochs=25,
     )
 
     device_stats = DeviceStatsMonitor()
@@ -119,7 +128,11 @@ if __name__ == "__main__":
         logger = None
         callbacks = None
     else:
-        callbacks = [checkpoint_callback, device_stats]
+        callbacks = [
+            best_checkpoints_callback,
+            regular_checkpoints_callback,
+            device_stats,
+        ]
 
     trainer = Trainer(
         max_epochs=-1,  # infinite
@@ -138,12 +151,32 @@ if __name__ == "__main__":
         print("Want to resume from", checkpoint_fn)
 
     # TODO specify other parameters as command line args
+    from x_unet import XUnet
+
+    class XUnetWithSkipConnection(XUnet):
+        """Add Stucker et al residual connection from UNet initial input DSM to the output, so that network learns to compute the residual correction"""
+
+        def forward(self, x):
+            residual = super().forward(x)
+            x_0 = x[:, 0, :, :]  # initial DSM passed in to the network
+            x_0 = x_0.unsqueeze(1)
+
+            return x_0 + residual
+
+    x_unet = XUnetWithSkipConnection
+    x_unet_args = dict(
+        dim=64,
+        channels=5,
+        out_dim=1,
+        dim_mults=(1, 2, 4, 8),
+        nested_unet_depths=(7, 4, 2, 1),  # nested unet depths, from unet-squared paper
+        consolidate_upsample_fmaps=True,  # whether to consolidate outputs from all upsample blocks, used in unet-squared paper
+    )
 
     # model = TGDSMLightningModule(n_input_channels=len(input_layers), lr=0.00002)
     model = TGDSMLightningModule(
         n_input_channels=len(input_layers),
         normalization="meanstd",
-        lr=1e-5,
         loss_fn=torch.nn.MSELoss,
     )
 
