@@ -7,21 +7,22 @@ channels:
 dependencies:
   # Python basics
   - pip
+  - python>=3.11
 
   # Skip Ames Stereo Pipeline (ASP) - install separately due to package conflicts
-  # - stereo-pipeline==3.2.0
+  # - stereo-pipeline==3.2.1
 
   # ResDepth dependencies
   - numpy
   - scipy
   - easydict
-  - pytorch
+  - pytorch>=2.0.1
   - pytorch-cuda  # needed for GPU, remove for Mac
-  - torchvision
+  - torchvision>=0.15.2
   - tensorboard
   
   # NN data ingestion and training
-  - torchgeo>=0.4.0
+  - torchgeo>=0.4.1
   - pytorch-lightning
   
   # Development tools
@@ -44,11 +45,13 @@ dependencies:
   - scikit-image
   - geopandas
   - astropy
+  - xdem
 
   - pip:
     - black # code formatting
     - torchsummary # obsolete, but needed by ResDepth (Stucker implementation)
     - x-unet # included to test enhanced UNet models
+    - pytorch-lightning[extra] # needed for CLI support
 
 # TODO careful when using dshean/uw-cryo packages (not specified here, install from source)
 # Dataset processing script expects these tools in PATH
@@ -56,3 +59,4 @@ dependencies:
 # - demcoreg # dem_mask.py useful to mask point cloud
 # - dgtools
 # - imview?
+# - asp_plot?
