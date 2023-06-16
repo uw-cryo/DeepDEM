@@ -49,16 +49,7 @@ class TGDSMOrthoDataset(GeoDataset):
     * (soon) masks are single-channel geotiffs with the pixel values represent the class
     """
 
-    # TODO hardcoding stereo pair for first Easton test
-    ortho_left_root = "1020010042D39D00.r100_ortho_1.0m_ba.tif"
-    ortho_right_root = "1020010043455300.r100_ortho_1.0m_ba.tif"
-    initial_dem_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM_holes_filled.tif"
-    initial_dem_unfilled_root = (
-        "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM.tif"
-    )
-    target_root = "USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
-    triangulation_error_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-IntersectionErr.tif"
-
+    
     def __init__(
         self,
         root: str = "data",
@@ -66,6 +57,10 @@ class TGDSMOrthoDataset(GeoDataset):
         transforms: Optional[Callable[[Dict[str, Tensor]], Dict[str, Tensor]]] = None,
         input_layers: list = ["dsm", "ortho_left", "ortho_right"],
         PATCH_SIZE=256,
+        crs="EPSG:32610",
+        res=1.0,
+        initial_dem_root=None,
+        dataset="baker2015_singletile"
     ) -> None:
         """Initialize a new TGDSMOrthoDataset dataset instance.
 
@@ -78,6 +73,71 @@ class TGDSMOrthoDataset(GeoDataset):
         Raises:
             AssertionError: if ``split`` is invalid
         """
+
+        # dataset = "baker2015_singletile"
+        if dataset == "baker2015":
+            # TODO hardcoding stereo pair for first Easton test
+            ortho_left_root = "1020010042D39D00.r100_ortho_1.0m_ba.tif"
+            ortho_right_root = "1020010043455300.r100_ortho_1.0m_ba.tif"
+            initial_dem_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM_holes_filled.tif"
+            initial_dem_unfilled_root = (
+                "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM.tif"
+            )
+            target_root = "USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
+            triangulation_error_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-IntersectionErr.tif"
+        elif dataset == "baker2015_melt_adjusted":
+            # TODO hardcoding stereo pair for first Easton test
+            ortho_left_root = "1020010042D39D00.r100_ortho_1.0m_ba.tif"
+            ortho_right_root = "1020010043455300.r100_ortho_1.0m_ba.tif"
+            initial_dem_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM_holes_filled_snow_median_subtracted.tif"
+            initial_dem_unfilled_root = (
+                "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM.tif"
+            )
+            target_root = "USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
+            triangulation_error_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-IntersectionErr.tif"
+        elif dataset == "baker2015_singletile":
+            # TODO properly fill in holes
+            initial_dem_unfilled_root = "try_pc_align_to_lidar_15m_maxdisp_rotationallowed-1.0m-DEM.tif"
+            initial_dem_root = "try_pc_align_to_lidar_15m_maxdisp_rotationallowed-1.0m-DEM_holes_filled.tif"
+            # target_root = "try_pc_align_to_lidar_15m_maxdisp_rotationallowed-1.0m-DEM_holes_filled.tif"
+            ortho_left_root = "final_ortho_left_1.0m.tif"
+            ortho_right_root = "final_ortho_right_1.0m.tif"
+            triangulation_error_root = "try_pc_align_to_lidar_15m_maxdisp_rotationallowed-1.0m-IntersectionErr_holes_filled.tif"
+            target_root = "mosaic_full128_USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
+        elif dataset == "scg2019_csm":
+            initial_dem_unfilled_root = "aligned_stereo_1.0m-DEM.tif"
+            initial_dem_root = "aligned_stereo_1.0m-DEMgdal_fillnodata_md500_si3.tif"
+            ortho_left_root = "final_ortho_left_1.0m.tif"
+            ortho_right_root = "final_ortho_right_1.0m.tif"
+            triangulation_error_root = "aligned_stereo_1.0m-IntersectionErrgdal_fillnodata_md500_si3.tif"
+            target_root = "scg_merged_lidar_dsm_1.0m-DEM_interpolate_na.tif" 
+
+        elif dataset == "scg2019":
+            # Try with SCG
+            # Recheck ordering but changing anyway to match the 
+            ortho_left_root = "WV03_20190505191051_104001004CBC0600_19MAY05191051-P1BS-503126480010_01_P001_ortho_1.0m_interpolate_na.tif" #"WV03_20190505191051_104001004CBC0600_19MAY05191051-P1BS-503126480010_01_P001_ortho_1.0m_ba_aligned_with_pc_align_and_initial_ba.tif"
+            ortho_right_root = "WV03_20190505191140_104001004C8CF300_19MAY05191140-P1BS-503126480010_01_P001_ortho_1.0m_interpolate_na.tif" #"WV03_20190505191051_104001004CBC0600_19MAY05191051-P1BS-503126480010_01_P001_ortho_1.0m_ba_aligned_with_pc_align_and_initial_ba.tif""WV03_20190505191140_104001004C8CF300_19MAY05191140-P1BS-503126480010_01_P001_ortho_1.0m_ba_aligned_with_pc_align_and_initial_ba.tif"
+            initial_dem_root = "scg_aligned_asp_dsm_1.0m-DEM_holes_filled.tif"
+            initial_dem_unfilled_root = "scg_aligned_asp_dsm_1.0m-DEM.tif"#_interpolate_na.tif"
+            # target_unfilled_root = "scg_merged_lidar_dsm_1.0m-DEM.tif"  # TODO use lidar sparsity
+            target_root = "scg_merged_lidar_dsm_1.0m-DEM_interpolate_na.tif"
+            # TODO get the target lidar nodata mask too
+            # triangulation_error_root = "scg_aligned_asp_dsm_1.0m-IntersectionErr.tif"
+            # triangulation_error_root = "scg_aligned_asp_dsm_1.0m-IntersectionErr.tif"
+            triangulation_error_root = "scg_aligned_asp_dsm_1.0m-IntersectionErr_interpolate_na.tif"
+        self.dataset = dataset
+        self.ortho_left_root = ortho_left_root
+        self.ortho_right_root = ortho_right_root
+        self.initial_dem_root = initial_dem_root
+        self.initial_dem_unfilled_root = initial_dem_unfilled_root
+        self.target_root = target_root
+        self.triangulation_error_root = triangulation_error_root
+        
+
+        # TODO hacky workaround to use melt-corrected raster instead as the filepath. File paths have to be easily configured
+        if initial_dem_root is not None:
+            self.initial_dem_root = initial_dem_root
+
         super().__init__(transforms=transforms)
         self.root = root
         self.split = split
@@ -86,9 +146,8 @@ class TGDSMOrthoDataset(GeoDataset):
         self.input_layers = input_layers
 
         # Should pass these in as args...
-        self._crs = CRS.from_epsg(32610)
-        self.res = 1.0
-
+        self._crs = CRS.from_string(crs)
+        self.res = res
         self.PATCH_SIZE = PATCH_SIZE
 
         # self._verify() # TODO bring some sort of quality check back...
@@ -97,6 +156,7 @@ class TGDSMOrthoDataset(GeoDataset):
             interleaved=False, properties=Property(dimension=3)
         )  # TODO return to 3 dimensions to search across different capture times??? Not needed right now
         # self.index.set_dimension(-2) # Was not working above???
+
 
         self.files = self._load_files()
 
@@ -163,10 +223,16 @@ class TGDSMOrthoDataset(GeoDataset):
                 window=rasterio.windows.from_bounds(
                     minx, miny, maxx, maxy, initial_dem_full.transform
                 ),
-                masked=False,  # initial DEM cannot have nodata holes
+                masked=True,  # try allowing nodata in initial DEM
+                # masked=False,  # initial DEM cannot have nodata holes
             )
 
             # TODO try removing temporal offset from initial dem snow /ice melt in training
+
+            # TODO some initial DEMs have large holes remaining - keep this?
+            initial_dem = rasterio.fill.fillnodata(initial_dem)
+        
+        # print("Read DEM")
 
         with rasterio.open(files["initial_dem_unfilled"]) as initial_dem_unfilled_full:
             initial_dem_unfilled = initial_dem_unfilled_full.read(
@@ -283,14 +349,25 @@ class TGDSMOrthoDataset(GeoDataset):
         files = []
         for directory in directories:
             # TODO need to differentiate between left & right orthoimages???
-            pattern = os.path.join(
-                directory, "**", "files_to_zip", self.initial_dem_root
-            )
-            print("Initial DEM pattern:", pattern)
-            initial_dems = glob.glob(pattern, recursive=True)
+
+            if self.dataset == "baker2015" or self.dataset == "baker2015_melt_adjusted":
+                pattern = os.path.join(
+                    directory, "**", "files_to_zip", self.initial_dem_root
+                )
+            else:
+                pattern = os.path.join(
+                    directory, self.initial_dem_root  # TODO make this work if there is a single file
+                )
+
+            patterns = [pattern]
+            # patterns = [pattern_single, pattern_tiles]
+            initial_dems = []
+            for pattern in patterns:
+                print("Initial DEM pattern:", pattern)
+                initial_dems.extend(glob.glob(pattern, recursive=True))
 
             print("Adding files to list & spatial index...")
-            initial_dems_str = "\n".join(initial_dems)
+            # initial_dems_str = "\n".join(initial_dems)
             print(f"Have {len(initial_dems)} tiles")
 
             for i, initial_dem in enumerate(sorted(initial_dems)):
@@ -330,14 +407,21 @@ class TGDSMOrthoDataset(GeoDataset):
                     tile_dict["target"] = target
 
                 files.append(tile_dict)
-
-                with rasterio.open(ortho_left) as f:
-                    minx, miny, maxx, maxy = f.bounds
-
-                    # Used in chesapeake.py, but we don't care about time yet
-                    mint: float = 0
-                    maxt: float = sys.maxsize
-                    coords = (minx, maxx, miny, maxy, mint, maxt)
+                
+                # Used in chesapeake.py, but we don't care about time yet
+                mint: float = 0
+                maxt: float = sys.maxsize
+                
+                with rasterio.open(initial_dem) as demf:
+                    dminx, dminy, dmaxx, dmaxy = demf.bounds
+                    coords = (
+                        max(minx, dminx),
+                        min(maxx, dmaxx),
+                        max(miny, dminy),
+                        min(maxy, dmaxy),
+                        mint,
+                        maxt
+                    )
 
                 # Add files to spatial index
                 self.index.insert(i, coords, tile_dict)
@@ -362,3 +446,36 @@ class TGDSMOrthoDataset(GeoDataset):
             a matplotlib Figure with the rendered sample
         """
         raise NotImplementedError
+
+
+if __name__ == "__main__":
+    # Quick test of torchgeo UnionDataset functionality
+    # geo.py was fixed in https://github.com/microsoft/torchgeo/pull/786
+    TILE_SIZE = 512
+
+    input_layers = [
+        "dsm",
+        "ortho_left",
+        "ortho_right",
+        "triangulation_error",
+        "nodata_mask",
+    ]
+
+    dataset_SCG = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/SCG_ALIGNED_STACK", split="train", dataset="scg2019", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
+    dataset_Baker2015 = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/dataset_processing/baker_csm/baker_csm_stack", split="train", dataset="baker2015_singletile", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
+
+    merged_dataset = dataset_SCG | dataset_Baker2015
+    dataset_SCG2 = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/SCG_ALIGNED_STACK", split="train", dataset="scg2019", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
+
+    # Demonstrate the power of merging two datasets (from different regions but same CRS)
+    merged_dataset = dataset_SCG & dataset_SCG2
+
+    print(len(merged_dataset))
+    minx = 640000
+    miny = 5355400
+    maxx = minx+TILE_SIZE
+    maxy = miny + TILE_SIZE
+    mint = 0
+    maxt = 9.223372036854776e+18
+    out = merged_dataset.__getitem__(BoundingBox(minx, maxx, miny, maxy, mint, maxt))
+    print(out["inputs"].shape)
