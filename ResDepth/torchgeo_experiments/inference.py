@@ -1,6 +1,13 @@
-"""Evaluate trained model from checkpoint"""
+"""Evaluate trained model from checkpoint and produce output DEM + hillshade.
+
+This approach should soon be replaced by LightningCLI predict step because:
+* this requires code changes
+* all configuration choices can live in one non-Python file
+* avoid redundant code for batch processing & normalization steps
+"""
 import sys
 import os
+import subprocess
 
 import numpy as np
 import math
@@ -22,6 +29,8 @@ from rasterio.transform import from_origin
 sys.path.insert(0, "/mnt/1.0_TB_VOLUME/sethv/resdepth_all/ResDepth/")
 from lib.UNet import UNet
 
+from xunet_with_skip_connection import XUnetWithSkipConnection
+
 # Import our dataset
 from torchgeo_dataset import TGDSMOrthoDataset
 
@@ -36,7 +45,7 @@ from train_utils import (
     call_model,
 )
 
-TILE_SIZE = 256
+TILE_SIZE = 2048  # may need to be as small as 256x256 depending on model
 
 if __name__ == "__main__":
     # Command-line args
@@ -51,8 +60,15 @@ if __name__ == "__main__":
     else:
         model_used = "stucker_unet"
 
-    resdepth_state_dict = torch.load(ckpt)
-    device = torch.device("cuda")
+    if "cpu" in sys.argv:
+        device = torch.device("cpu")
+
+        os.environ["CUDA_VISIBLE_DEVICES"]=""
+        print("using CPU")
+    else:
+        device = torch.device("cuda")
+
+    resdepth_state_dict = torch.load(ckpt, map_location=device)
 
     if model_used == "stucker_unet":
         print("Loading model from epoch", resdepth_state_dict["epoch"])
@@ -75,19 +91,7 @@ if __name__ == "__main__":
             {k[5:]: v for k, v in resdepth_state_dict["state_dict"].items()},
         )  # cut off the 'unet.' in state dict???
     elif model_used == "xunet":
-        from x_unet import XUnet
-
-        class XUnetWithSkipConnection(XUnet):
-            """Add Stucker et al residual connection from UNet initial input DSM to the output, so that network learns to compute the residual correction"""
-
-            def forward(self, x):
-                residual = super().forward(x)
-                x_0 = x[:, 0, :, :]  # initial DSM passed in to the network
-                x_0 = x_0.unsqueeze(1)
-
-                return x_0 + residual
-
-        x_unet = XUnetWithSkipConnection
+        
         x_unet_args = dict(
             dim=64,
             channels=5,
@@ -114,20 +118,6 @@ if __name__ == "__main__":
 
         BATCH_SIZE = 1
 
-        train_transforms = None  # Compose([remove_bbox])
-        # VALIDATION
-        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
-        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
-        val_directory = [
-            "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg",
-            "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg",
-        ]
-
-        # TODO single large raster inference almost works except for bug with rio.fillnodata
-        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/ResDepth/torchgeo_experiments/mosaic"
-
-        print("Loading dataset(s)", val_directory)
-
         input_layers = [
             "dsm",
             "ortho_left",
@@ -136,12 +126,36 @@ if __name__ == "__main__":
             "nodata_mask",
         ]
 
+        train_transforms = None  # Compose([remove_bbox])
+        # VALIDATION
+        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VAL_tile_stack_baker_small_errors_only"
+        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_small_errors_only"
+        # val_directory = [
+        #     "/mnt/1.0_TB_VOLUME/sethv/shashank_data/TRAIN_tile_stack_baker_128_global_coreg",
+        #     "/mnt/1.0_TB_VOLUME/sethv/shashank_data/VALIDATION_tile_stack_baker_128_global_coreg",
+        # ]
+
+        # val_directory = "/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/baker_csm/baker_csm_stack"
+        # dataset = "baker2015_singletile"
+        # TODO support datasets with different input DEM (like one that's been adjusted for melt)
+        # initial_dem_root = "WV01_20150911_1020010042D39D00_1020010043455300_aligned_crop_1.0m-DEM_holes_filled_snow_median_subtracted.tif"
+
+        val_directory = "/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/scg_csm/scg_csm_stack"
+        dataset = "scg2019_csm"
+
+        initial_dem_root = None
+
+
+        print("Loading dataset(s)", val_directory)
+
         dataset = TGDSMOrthoDataset(
             root=val_directory,
+            dataset=dataset,
             split="test",
             transforms=train_transforms,
             input_layers=input_layers,
             PATCH_SIZE=TILE_SIZE,
+            initial_dem_root=initial_dem_root
         )
         print("Dataset bounds", dataset.bounds)  # torchgeo stores bounds
         minx, miny, maxx, maxy = (
@@ -177,6 +191,7 @@ if __name__ == "__main__":
             concatenated_dirs = "+".join(basenames)
             val_output_dir = f"{concatenated_dirs}_{os.path.basename(ckpt)}"
         else:
+            print("Val_directory type=", type(val_directory))
             raise NotImplementedError
 
         os.makedirs(val_output_dir, exist_ok=True)
@@ -247,6 +262,8 @@ if __name__ == "__main__":
 
             # TODO check math for potential off-by-one errors
             # output = patch["target"]  # just pass through GT for testing purposes, expect difference map == 0
+            # print(f"Write y1 = {y-TILE_SIZE}, y2={y}, x1={x}, x2={x+TILE_SIZE}")
+            print(f"Writing tile ({x}, {y}) output: median={output.median()}, min={output.min()}, max={output.max()})")
             out[0, y - TILE_SIZE : y, x : x + TILE_SIZE] = output.numpy()
 
         print("Writing output raster:", output_filename)
@@ -269,4 +286,7 @@ if __name__ == "__main__":
             BIGTIFF="IF_SAFER",
         ) as new_dataset:
             new_dataset.write(out[0], 1)
-        # gdal_opt='-co COMPRESS=LZW -co TILED=YES -co BIGTIFF=IF_SAFER'
+
+        # Also write a hillshade for convenience
+        output_hs_filename = "hs_" + output_filename
+        subprocess.run(["gdaldem", "hillshade", "-compute_edges", output_filename, output_hs_filename])
