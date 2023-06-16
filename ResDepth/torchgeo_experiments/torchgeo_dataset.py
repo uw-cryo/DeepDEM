@@ -415,10 +415,10 @@ class TGDSMOrthoDataset(GeoDataset):
                 with rasterio.open(initial_dem) as demf:
                     dminx, dminy, dmaxx, dmaxy = demf.bounds
                     coords = (
-                        max(minx, dminx),
-                        min(maxx, dmaxx),
-                        max(miny, dminy),
-                        min(maxy, dmaxy),
+                        dminx,
+                        dmaxx,
+                        dminy,
+                        dmaxy,
                         mint,
                         maxt
                     )
