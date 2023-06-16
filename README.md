@@ -1,11 +1,11 @@
-# deep-elevation-refinement
-ResDepth &amp; other deep learning approaches to improve DSMs/DTMs
+# DeepDEM
+Satellite stereo DEM refinement using deep learning
 
 # Note
 This files in this repository will be restructured as the workflow for running experiments with different models has changed, so multiple layers of folders should be removed.
 
 ## Useful concepts to familiarize oneself with
-- ASP stereo processing
+- Ames Stereo Pipeline (ASP) and very-high-resolution (VHR) satellite stereo processing
 - torchgeo
 - PyTorch / PyTorch Lightning
 
@@ -15,7 +15,7 @@ This files in this repository will be restructured as the workflow for running e
 - Run `mamba env create --file environment.yml`
 - Follow the ASP installation instructions to create a separate ASP installation (latest stable/nightly release; conda environment or download directly and add to path manually) as conda environment is not compatible
 
-## Preparing the dataset
+## Preparing the input datasets
 Follow the steps outlined in `dataset_processing/baker_csm/baker_csm_processing.ipynb` to start
 
 TODO: Revised script version to work with new pairs 
