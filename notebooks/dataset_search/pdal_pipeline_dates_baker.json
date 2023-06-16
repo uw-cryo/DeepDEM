@@ -1,0 +1,1 @@
+{"pipeline": [{"type": "readers.ept", "filename": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_WA_MtBaker_2015_LAS_2017/ept.json", "resolution": 1000}, {"type": "filters.reprojection", "out_srs": "EPSG:32610"}, {"type": "writers.text", "format": "csv", "order": "X,Y,Z,GpsTime", "keep_unspecified": "false", "filename": "testdates.csv"}]}
