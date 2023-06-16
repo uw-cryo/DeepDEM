@@ -1,4 +1,5 @@
 import sys
+import importlib
 
 import torch
 import torchvision
@@ -20,10 +21,14 @@ class TGDSMLightningModule(LightningModule):
         lr=0.00002,
         weight_decay=1e-5,
         checkpoint=None,
-        loss_fn=torch.nn.L1Loss,
-        model=None,
+        loss_fn_module_name="torch.nn",
+        loss_fn_class_name="L1Loss",
+        # loss_fn=torch.nn.L1Loss,
+        model="ResDepth_UNet",
         model_args=None,
-        normalization="minmax",
+        normalization="meanstd",
+        metrics=[],
+        use_input_dem_mask_for_computing_loss=False
     ):
         """
         n_input_channels 3 or 4 or 5 (changing this smoothly is not yet supported)
@@ -32,13 +37,19 @@ class TGDSMLightningModule(LightningModule):
         """
         super().__init__()
 
+        # Log each of the metrics for train & validation datasets
+        self.metrics = metrics
+
         self.normalization = normalization
         print("** using normalization strategy", normalization)
 
-        if model:
+        self.use_input_dem_mask_for_computing_loss = use_input_dem_mask_for_computing_loss
+
+        if model and model != "ResDepth_UNet":
             # Pass in your own model
             self.unet = model(**model_args)
         else:
+            # Assume we are using standard ResDepth UNet
             # TODO parameters should be loaded from configuration, not hardcoded
             model_args = {
                 "n_input_channels": n_input_channels,
@@ -70,7 +81,11 @@ class TGDSMLightningModule(LightningModule):
             )  # cut off the 'unet.' in state dict???
 
         # Define loss function
-        self.loss = loss_fn()
+        # self.loss = loss_fn  # old way didn't work with LightningCLI
+        module = importlib.import_module(loss_fn_module_name)
+        class_ = getattr(module, loss_fn_class_name)
+        instance = class_()
+        self.loss = instance
         # TODO may try huber loss with a reasonable delta for this problem
 
     def forward(self, x):
@@ -118,13 +133,92 @@ class TGDSMLightningModule(LightningModule):
             # print(out.mean(), "mean of output DSM from network after de-normalization")
         else:
             raise NotImplementedError
+
         return out
 
     def training_step(self, batch, batch_idx):
         """Take one training step and compute the loss"""
-        output = self(batch["inputs"])
-        # rescale the target ?
-        train_loss = self.loss(output.squeeze(), batch["target"].squeeze())
+        # ins = batch["inputs"]
+        output = self(batch["inputs"]).squeeze()
+        target = batch["target"].squeeze()
+
+        # nan_mask = torch.zeros_like(target)
+        # print(f"Loss before replacement= {self.loss(output, target)}")
+        # print(torch.isfinite(output).sum())
+        # print(torch.isfinite(target).sum())
+        output = torch.where(torch.isfinite(output),output,0)
+        output = torch.where(torch.isfinite(target),output,0)
+        target = torch.where(torch.isfinite(output),target,0)
+        target = torch.where(torch.isfinite(target),target,0)
+        # print(torch.isfinite(output).sum())
+        # print(torch.isfinite(target).sum())
+        # print(f"Sum of output= {output.sum()}")
+        # print(f"Sum of target= {target.sum()}")
+        # print(f"Loss after replacement= {self.loss(output, target)}")
+        # input("Pasued here")
+
+        # target=torch.nan_to_num(target,0)
+        # torch.bitwise_or(output < 0, output > 5000, target < 0, target > 5000, torch.isfinite(output), torch.isfinite(target), nan_mask)
+        # output = torch.where(nan_mask, output, 0)
+        # target = torch.where(nan_mask, target, 0)
+
+        # print(nan_mask.shape, nan_mask.sum())
+        # for layer in range(ins.shape[1]):
+        #     print(f"Number of inputs > 0: {torch.sum(ins[:,layer] > 0)} shape= {ins[:,layer].shape}")
+
+        # print(f"Number of outputs > 0: {torch.sum(output > 0)} shape= {output.shape}")
+        # print(f"Number of target > 0: {torch.sum(target > 0)} shape= {target.shape}")
+        # # Mask out all NaNs of output & target first ???
+
+        # print(f"Sum of nan_mask joint output & target {torch.sum(nan_mask)}")
+
+        # input("INput here to keep going:")
+
+
+        train_loss_before = self.loss(output, target)
+        train_loss = train_loss_before
+
+        # TODO move this to config file!!!
+        if self.use_input_dem_mask_for_computing_loss:
+
+            # TODO fix the operation of the loss function
+            # See what happens if we mask all pixels where input DEM had nodata
+            # We are using an inpainted DEM as the actual input, but
+            # the NN receives the stereo nodata mask as input:
+            # in theory it could learn to fix these holes,
+            # but we want to see what happens if we avoid training to fix them
+            # and only compute loss where input DEM was valid
+            nodata_mask_layer_idx = -1 # yuck, assumes nodata is last
+            mask = batch["inputs"][:,nodata_mask_layer_idx]
+
+            # rescale the target ?
+            num_valid_output_px_before = (output > 0).sum(dim=[1,2]).cpu().numpy()
+            # print(f"Output before: number of pixels={num_valid_output_px_before}")
+
+
+            debug = False
+            if debug:
+                print("Masking")
+                print(f"Loss before: {train_loss_before:.2f}")
+            output = torch.where(mask > 0, output, 0)
+            target = torch.where(mask > 0, target, 0)
+            num_valid_output_px_after = (output > 0).sum(dim=[1,2]).cpu().numpy()
+            diff = num_valid_output_px_after - num_valid_output_px_before
+
+            # print(f"Output after: number of pixels={num_valid_output_px_after}")
+
+
+            # TODO want to be able to pass inputs to loss function rather than
+            train_loss = self.loss(output, target)
+
+            if debug:
+                print(f"Removed {-1 * diff.sum()} pixels in batch, max in 1 patch was {-1 * diff.min()}")
+                print(f"Loss after: {train_loss:.2f}")
+                input("Hit enter to go to next: ")
+
+        # IF
+        if not torch.isfinite(train_loss):
+            train_loss = torch.zeros_like(train_loss)
 
         # Log all metrics
         # How to get these to show up aggregated at end of each epoch???
@@ -143,14 +237,43 @@ class TGDSMLightningModule(LightningModule):
 
         return train_loss
 
+    def on_training_epoch_end(self, outputs) -> None:
+        for metric_name, metric in self.metrics:
+            # compute and log metric for this step
+            metric(outputs["preds"], outputs["target"])
+            self.log(f"train_{metric_name}", metric)
+
+
+        return super().training_epoch_end(outputs)
+
+
     def validation_step(self, batch, batch_idx):
         """Take one training step and compute the loss"""
         output = self(batch["inputs"]).squeeze()
+
         target = batch["target"].squeeze()
         val_loss = self.loss(output, target)
         l1_loss = torch.nn.L1Loss()(output, target)
         l2_loss = torch.nn.MSELoss()(output, target)
         val_metrics = dict(val_loss=val_loss, val_l1_loss=l1_loss, val_l2_loss=l2_loss)
+
+
+        nodata_mask_layer_idx = -1
+        mask = batch["inputs"][:,nodata_mask_layer_idx]
+
+        masked_output = torch.where(mask > 0, output, 0)
+        masked_target = torch.where(mask > 0, target, 0)
+        masked_val_loss = self.loss(masked_output, masked_target)
+        masked_l1_loss = torch.nn.L1Loss()(masked_output, masked_target)
+        masked_l2_loss = torch.nn.MSELoss()(masked_output, masked_target)
+
+
+        masked_val_metrics = dict(masked_val_loss=masked_val_loss, masked_val_l1_loss=masked_l1_loss, masked_val_l2_loss=masked_l2_loss)
+
+        val_metrics.update(masked_val_metrics)
+
+        # TODO validation metrics with mask
+        # val_metrics_masked
         self.log_dict(
             val_metrics, prog_bar=True, logger=True, on_step=True, on_epoch=True
         )
