@@ -1,0 +1,63 @@
+# Conda environment for machines without CUDA
+# torchgeo version pinned for testing existing code- should move to latest
+name: ddem_tg041
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  # Python basics
+  - pip
+  - python>=3.11
+
+  # Skip Ames Stereo Pipeline (ASP) - install separately due to package conflicts
+  # - stereo-pipeline==3.2.1
+
+  # ResDepth dependencies
+  - numpy
+  - scipy
+  - easydict
+  - pytorch>=2.0.1
+  - torchvision>=0.15.2
+  - tensorboard
+  
+  # NN data ingestion and training
+  - torchgeo==0.4.1
+  - pytorch-lightning
+  
+  # Development tools
+  - jupyterlab
+
+  # Dataset visualization tools
+  - matplotlib
+  - matplotlib-scalebar
+  - streamlit
+  - folium
+  - contextily
+
+  # Raster and point cloud handling
+  - shapely
+  - rasterio
+  - rioxarray
+  - pdal
+  - python-pdal
+  - gdal
+  - scikit-image
+  - geopandas
+  - astropy
+  - xdem
+
+  - pip:
+    - black # code formatting
+    - torchsummary # obsolete, but needed by ResDepth (Stucker implementation)
+    - x-unet # included to test enhanced UNet models
+    - pytorch-lightning[extra] # needed for CLI support
+
+# TODO careful when using dshean/uw-cryo packages (not specified here, install from source)
+# Dataset processing script expects these tools in PATH
+# - pygeotools # only used in tile prep, may remove
+# - demcoreg # dem_mask.py useful to mask point cloud
+# - dgtools
+# - imview?
+# - asp_plot?
