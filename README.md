@@ -4,10 +4,12 @@ Satellite stereo DEM refinement using deep learning
 # Note
 This files in this repository will be restructured as the workflow for running experiments with different models has changed, so multiple layers of folders should be removed.
 
-## Useful concepts to familiarize oneself with
+## Useful concepts to familiarize oneself with first
+- [Demo notebook](https://github.com/uw-cryo/DeepDEM/blob/main/notebooks/deepDEM_demo.ipynb)
 - Ames Stereo Pipeline (ASP) and very-high-resolution (VHR) satellite stereo processing
-- torchgeo
-- PyTorch / PyTorch Lightning
+- [torchgeo](https://torchgeo.readthedocs.io/en/stable/)
+- [ResDepth](https://github.com/prs-eth/ResDepth/)
+- PyTorch / [PyTorch Lightning](https://lightning.ai/)
 
 # Instructions for training
 
@@ -18,12 +20,12 @@ This files in this repository will be restructured as the workflow for running e
 ## Preparing the input datasets
 Follow the steps outlined in `dataset_processing/baker_csm/baker_csm_processing.ipynb` to start
 
-TODO: Revised script version to work with new pairs 
+TODO: Integrate revised scripts to work with new pairs 
 
 ## Training the network
-Run train.py with modifications
+Run `train.py` with modifications:
 - `python train.py`
-Run with CLI (in progress):
+Run with LightningCLI (in progress, encouraged):
 - Check available parameter and model and dataset settings
 - Run with commands like `python train_cli.py fit --data.train_directory="/path/to/training/data" --data.val_directory="/path/to/validation/data" --model.normalization="meanstd" ...`
 
@@ -46,7 +48,7 @@ Evaluation (besides inspection with QGIS or preferred raster workflow)
     - train_cli.py with default arguments `python train_cli.py fit --print_config` is not as helpful as looking at the example YAML file for Mt Baker training/validation split in `configs/`
 - `resdepth_lightning_module.py` wraps the model, optimizer, training and validation steps
 - `tgdsm_lightning_data_module.py` wraps the training and validation DataLoaders
-- `torchgeo_dataset.py` not required, but is base dataset implementation to feed stacks of aligned rasters to PyTorch
+- `torchgeo_dataset.py` is not required moving forward, but is base dataset implementation to feed stacks of aligned rasters to PyTorch
     - This implementation could be modified to remove hardcoded filenames for the different layers
 - `scg_stereo.sh` and stereo notebook- changing to generic stereo script or stick with notebook workflow?
 - TODO Dataset inspection notebook revised `check_and_plot_tiles.ipynb` / `visualize_torchgeo_datasets.ipynb`
