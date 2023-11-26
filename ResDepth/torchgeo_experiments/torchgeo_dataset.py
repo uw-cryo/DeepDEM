@@ -103,7 +103,7 @@ class TGDSMOrthoDataset(GeoDataset):
             ortho_left_root = "final_ortho_left_1.0m.tif"
             ortho_right_root = "final_ortho_right_1.0m.tif"
             triangulation_error_root = "try_pc_align_to_lidar_15m_maxdisp_rotationallowed-1.0m-IntersectionErr_holes_filled.tif"
-            target_root = "mosaic_full128_USGS_LPC_WA_MtBaker_2015_*_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
+            target_root = "mosaic_full128_USGS_LPC_WA_MtBaker_2015_LAS_2017_32610_first_filt_v1.3_1.0m-DEM_holes_filled.tif"
         elif dataset == "scg2019_csm":
             initial_dem_unfilled_root = "aligned_stereo_1.0m-DEM.tif"
             initial_dem_root = "aligned_stereo_1.0m-DEMgdal_fillnodata_md500_si3.tif"
@@ -462,7 +462,7 @@ if __name__ == "__main__":
     ]
 
     dataset_SCG = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/SCG_ALIGNED_STACK", split="train", dataset="scg2019", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
-    dataset_Baker2015 = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/deep-elevation-refinement/dataset_processing/baker_csm/baker_csm_stack", split="train", dataset="baker2015_singletile", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
+    dataset_Baker2015 = TGDSMOrthoDataset("/Users/shashank/Documents/deepdem/baker_csm_stack", split="train", dataset="baker2015_singletile", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
 
     merged_dataset = dataset_SCG | dataset_Baker2015
     dataset_SCG2 = TGDSMOrthoDataset("/mnt/1.0_TB_VOLUME/sethv/resdepth_all/data/SCG_ALIGNED_STACK", split="train", dataset="scg2019", input_layers=input_layers, PATCH_SIZE=TILE_SIZE, crs="EPSG:32610", res=1)
