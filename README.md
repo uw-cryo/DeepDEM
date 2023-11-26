@@ -15,6 +15,7 @@ This files in this repository will be restructured as the workflow for running e
 
 ## Installation
 - Run `mamba env create --file environment.yml`
+- To run DeepDEM command line tools, the original ResDepth UNet model needs to be available to the module (see demo notebook), so please be sure to git clone the ResDepth repository and provide path to corresponding DeepDEM codebase!
 - Follow the ASP installation instructions to create a separate ASP installation (latest stable/nightly release; conda environment or download directly and add to path manually) as conda environment is not compatible
 
 ## Preparing the input datasets
