@@ -1,4 +1,5 @@
-"""Load pixel-aligned raster stack into torchgeo.
+"""
+Load pixel-aligned raster stack into torchgeo.
 
 Inspired by torchgeo implementation of 2022 IEEE GRSS Data Fusion Contest (DFC2022) dataset.
 """
@@ -22,7 +23,6 @@ from torchgeo.datasets.geo import GeoDataset
 from rasterio.crs import CRS
 from torchgeo.datasets.utils import BoundingBox
 import rasterio.fill
-
 
 class TGDSMOrthoDataset(GeoDataset):
     """Initial DSM + ortho dataset.
@@ -132,7 +132,6 @@ class TGDSMOrthoDataset(GeoDataset):
         self.initial_dem_unfilled_root = initial_dem_unfilled_root
         self.target_root = target_root
         self.triangulation_error_root = triangulation_error_root
-        
 
         # TODO hacky workaround to use melt-corrected raster instead as the filepath. File paths have to be easily configured
         if initial_dem_root is not None:
@@ -157,8 +156,8 @@ class TGDSMOrthoDataset(GeoDataset):
         )  # TODO return to 3 dimensions to search across different capture times??? Not needed right now
         # self.index.set_dimension(-2) # Was not working above???
 
-
-        self.files = self._load_files()
+        self._files = None
+        self.files = self.load_files()
 
     def __getitem__(self, query: BoundingBox):  # -> Dict[str, Any]:
         """Retrieve rasters/masks and metadata indexed by query.
@@ -337,7 +336,15 @@ class TGDSMOrthoDataset(GeoDataset):
         """
         return len(self.files)
 
-    def _load_files(self) -> List[Dict[str, str]]:
+    @property
+    def files(self):
+        return self._files
+    
+    @files.setter
+    def files(self, values):
+        self._files = values
+
+    def load_files(self):
         """Return the paths of the files in the dataset.
 
         Returns:
