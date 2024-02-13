@@ -1,0 +1,15 @@
+name: deep_dem
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+ - rasterio
+ - shapely
+ - geopandas
+ - matplotlib
+ - pytorch
+ - pytorch-cuda=11.8
+ - torchgeo
+ - pytorch-lightning
+ - jupyterlab
