@@ -13,3 +13,4 @@ dependencies:
  - torchgeo
  - pytorch-lightning
  - jupyterlab
+ - tensorboard
