@@ -18,3 +18,5 @@ dependencies:
  - tensorboard
  - smp
  - tqdm
+ - ipyleaflet
+ - pdal
