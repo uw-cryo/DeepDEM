@@ -2,6 +2,7 @@
 
 # The DeepDEM framework uses a UNet for DEM refinement
 from UNet import UNet
+# from UNet import UNet
 
 # We can also use UNets with varying encoders
 from segmentation_models_pytorch import Unet as smp_unet
