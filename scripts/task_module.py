@@ -106,11 +106,8 @@ class DeepDEMRegressionTask(BaseTask):
         try:
             index = self.model_kwargs["bands"].index("asp_dsm")
             initial_dsm = img[:, index, ...].detach().clone()
-            for i in range(img.shape[0]):  # iterate over all batch samples
-                sample_mean = img[i, index, ...].mean()
-                img[i, index, ...] = normalize(
-                    img[i, index, ...], mean=sample_mean, std=self.gsf
-                )
+            sample_means = img[:, index, ...].mean(dim=(1, 2), keepdim=True)
+            img[:, index, ...] = (img[:, index, ...] - sample_means)/self.gsf
         except ValueError:
             # if an initial dsm is not provided, we assume zero values
             initial_dsm = torch.zeros_like(img[:, 0, ...].squeeze())
@@ -133,16 +130,8 @@ class DeepDEMRegressionTask(BaseTask):
         except ValueError:
             pass
 
-        # print("channel wise min max: ")
-        # for i in range(img.shape[1]):
-        #     print(img[:, i, ...].min(), img[:, i, ...].max())
-
         output = self.model.forward(img).squeeze()
-
-        # print("Output shape in forward: ", output.shape)
-        for i in range(output.shape[0]):  # type:ignore
-            # print(output[i, ...].min(), output[i, ...].max(), initial_dsm[i, ...].min(), initial_dsm[i, ...].max(), self.gsf)
-            output[i, ...] = output[i, ...] * self.gsf + initial_dsm[i, ...]  # type: ignore
+        output = output*self.gsf + initial_dsm
 
         return output
 
@@ -166,7 +155,6 @@ class DeepDEMRegressionTask(BaseTask):
             x[:, :-1, ...],
             x[:, -1, ...].squeeze(),
         )  # the lidar data is the last channel
-        # print("Type in training step: ", type(x), type(y))
         batch_size = x.shape[0]
         y_hat = self.forward(x).squeeze()
         mask = self.return_batch_mask(x)
@@ -196,12 +184,6 @@ class DeepDEMRegressionTask(BaseTask):
         loss: Tensor = self.model_loss(y_hat, y, mask)
         self.log("test_loss", loss, batch_size=batch_size)
 
-    # def predict(self, *args, **kwargs):
-    #     '''Return model inferences'''
-    #     batch = args[0]  # noqa: F841
-    #     return
-
-    #     retu
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configuring optimizers"""
         optimizer = optim.Adam(self.parameters(), lr=self.model_kwargs['lr'])
