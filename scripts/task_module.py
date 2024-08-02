@@ -62,6 +62,9 @@ class DeepDEMRegressionTask(BaseTask):
         self.right_ortho_mean = tensor(self.model_kwargs["right_ortho_mean"])
         self.right_ortho_std = tensor(self.model_kwargs["right_ortho_std"])
 
+        self.train_losses = []
+        self.val_losses = []
+
     def configure_models(self):
         """Initialize and configure model"""
 
@@ -159,8 +162,13 @@ class DeepDEMRegressionTask(BaseTask):
         y_hat = self.forward(x).squeeze()
         mask = self.return_batch_mask(x)
         loss: Tensor = self.model_loss(y_hat, y, mask)
-        self.log("train_loss", loss, batch_size=batch_size)
+        self.log("train_loss", loss)
+        self.train_losses.apped(loss)
         return loss
+    
+    def on_train_epoch_end(self):
+        self.log("train_epoch_loss", self.train_losses/len(self.train_losses))
+        self.train_losses = []
 
     def validation_step(self, *args, **kwargs):
         """Validation step"""
@@ -171,7 +179,13 @@ class DeepDEMRegressionTask(BaseTask):
         y_hat = self.forward(x).squeeze()
         mask = self.return_batch_mask(x)
         loss: Tensor = self.model_loss(y_hat, y, mask)
-        self.log("val_loss", loss, batch_size=batch_size)
+        self.val_losses.append(loss)
+        self.log("val_loss", loss)
+        return loss
+    
+    def on_validation_epoch_end(self):
+        self.log("val_epoch_loss", self.val_losses/len(self.val_losses))
+        self.val_losses = []
 
     def test_step(self, *args, **kwargs):
         """Test step"""
