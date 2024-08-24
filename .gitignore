@@ -1,2 +1,4 @@
 outputs/*
 data/*
+scripts/checkpoints/*
+scripts/logs/*
