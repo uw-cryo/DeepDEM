@@ -8,6 +8,7 @@ dependencies:
  - shapely
  - geopandas
  - matplotlib
+ - numpy=1.26.4
  - pdal
  - python-pdal
  - pytorch
