@@ -2,7 +2,7 @@ import numpy as np
 
 def filter_z(ins, outs):
     # pdal args is defined in the PDAL pipeline that calls this script
-    z_val = pdalargs['z_val']
+    z_val = pdalargs['z_val'] # type: ignore
     mean = np.nanmean(ins['Z'])
     std = np.nanstd(ins['Z'])
     z_scores = (ins['Z'] - mean) / std
