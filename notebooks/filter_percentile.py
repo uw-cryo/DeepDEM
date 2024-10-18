@@ -11,6 +11,6 @@ def filter_percentile(ins, outs):
     mean = np.nanmean(ins['Z'])
     std = np.nanstd(ins['Z'])
     z_scores = (ins['Z'] - mean) / std
-    filtered_data = np.where(np.abs(z_scores) < z_val, ins['Z'], -9999)
-    outs['Z'] = filtered_data
+    filtered_classification = np.where(z_scores > z_val, 18, ins['Classification'])
+    outs['Classification'] = filtered_classification
     return True
