@@ -30,6 +30,9 @@ class DeepDEMRegressionTask(BaseTask):
     """
 
     # global scaling factor for DSM
+    # These are calculated from the 2015 Mt Baker WV1 images (0b_Calculating_Scale_Factor.ipynb)
+    # These values can be overridden by providing a dictionary containing
+    # chip size:scaling factor key value pairs when initializing the model
     GSF_DICT = {
         64: tensor(9.88),
         128: tensor(18.71),
@@ -42,6 +45,16 @@ class DeepDEMRegressionTask(BaseTask):
         self,
         **model_kwargs: dict,
     ):
+                
+        if 'GSF_DICT' not in model_kwargs:
+            print("*** Loading global scaling factors for WV1 Mt Baker data ***")
+            print("*** This can be overridden when initializing model (DeepDEMRegressionTask) ***")
+            # this will remain constant in an experiment, for a given chip size
+        else:
+            self.GSF_DICT = model_kwargs['GSF_DICT']
+        
+        self.gsf = self.GSF_DICT[self.model_kwargs["chip_size"]]
+
         self.save_hyperparameters(ignore=['transforms'])
 
         self.model_kwargs = model_kwargs
@@ -51,9 +64,6 @@ class DeepDEMRegressionTask(BaseTask):
         self.n_channels = (
             len(self.model_kwargs["bands"]) - 1
         )  # the lidar data is not part of the inputs
-
-        # this will remain constant in an experiment, for a given chip size
-        self.gsf = self.GSF_DICT[self.model_kwargs["chip_size"]]
 
         self.lr_scheduler = self.model_kwargs['lr_scheduler']
         self.lr_scheduler_scale_factor = self.model_kwargs['lr_scheduler_scale_factor']
