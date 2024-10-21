@@ -23,7 +23,7 @@ class CustomInputDataset(RasterDataset):
     3. NDVI values coinciding with the extent of the stereo imagery
     4. Triangulation errors associated with DSM generation from ASP
     5. Mask of no-data values where ASP is unable to generate an elevation estimate
-    6. Ground truth lidar data to train the model
+    6. Ground truth lidar data (DSM or DTM) to train the model
     """
 
     is_image = True
@@ -37,10 +37,33 @@ class CustomInputDataset(RasterDataset):
         "nodata_mask",
         "triangulation_error",
         "lidar_data",
+        "lidar_dtm_data",
     ]
 
-    def __init__(self, paths, **kwargs):
-        super().__init__(paths=paths, bands=kwargs['bands'])
+    def __init__(self, paths, stage='train', **kwargs):
+        lidar_dsm_index, lidar_dtm_index = -1, -1
+        try:
+            lidar_dsm_index = kwargs['bands'].index("lidar_data")
+        except:
+            pass
+
+        try:
+            lidar_dtm_index = kwargs['bands'].index("lidar_dtm_data")
+        except:
+            pass
+
+        assert (lidar_dsm_index == -1) or (lidar_dtm_index == -1), "Only one of DTM or DSM can be provided in input bands!"
+        lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
+
+        bands = kwargs['bands']
+        if stage == 'train':
+            assert lidar_data_index != -1, "Either DTM or DSM must be specified as part of inputs!"
+
+            # Training labels from LIDAR must be the last channel
+            lidar_data = bands.pop(lidar_data_index)
+            bands.append(lidar_data)
+
+        super().__init__(paths=paths, bands=bands)
         
     def __getitem__(self, bounds):
         batch = super().__getitem__(bounds)
@@ -84,8 +107,8 @@ class CustomInputDataset(RasterDataset):
         filtered_array = flattened_array[mask]
         
         # Calculate the mean and standard deviation of the masked array
-        mean = np.mean(filtered_array)
-        std = np.std(filtered_array)
+        mean = float(np.mean(filtered_array))
+        std = float(np.std(filtered_array))
         
         return mean, std
 
@@ -99,27 +122,12 @@ class CustomDataModule(GeoDataModule):
     def __init__(self, **kwargs):
         super().__init__(
             **kwargs
-            # CustomInputDataset(kwargs["paths"], chip_size=kwargs['chip_size'], bands=self.bands),
-            # batch_size=kwargs["batch_size"],
-            # patch_size=kwargs["chip_size"],
-            # num_workers=kwargs["num_workers"],
         )
         self.aug = None
         self.train_aug = kwargs['train_aug'] if 'train_aug' in kwargs else None
         self.val_aug = kwargs['val_aug'] if 'val_aug' in kwargs else None
         self.test_aug = kwargs['test_aug'] if 'test_aug' in kwargs else None
         self.kwargs = kwargs
-
-        # self.train_aug = AugmentationSequential(
-        #     K.Normalize(mean=self.mean, std=self.std),
-        #     K.RandomResizedCrop(_to_tuple(self.patch_size), scale=(0.6, 1.0)),
-        #     K.RandomVerticalFlip(p=0.5),
-        #     K.RandomHorizontalFlip(p=0.5),
-        #     data_keys=['image', 'mask'],
-        #     extra_args={
-        #         DataKey.MASK: {'resample': Resample.NEAREST, 'align_corners': None}
-        #     },
-        # )
 
     def setup(self, stage: str) -> None:
         """Set up datasets and samplers.
@@ -141,7 +149,7 @@ class CustomDataModule(GeoDataModule):
 
             train_roi = BoundingBox(xmin, xmin + 0.8*x_extent, ymin, ymax, tmin, tmax)
             val_roi = BoundingBox(
-                xmin + 0.8 * x_extent, xmax, ymin, ymin + 0.5 * y_extent, tmin, tmax
+                xmin + 0.8*x_extent, xmax, ymin, ymax, tmin, tmax
             )
 
             self.train_sampler = RandomBatchGeoSampler(
@@ -248,25 +256,4 @@ class CustomDataModule(GeoDataModule):
         if self.trainer.training and self.train_aug:
             batch['image'] = self.train_aug(batch['image'])
 
-        # print(self.trainer.training, self.trainer.validating)
-
         return batch
-
-    # def __init__(self, paths: str | Iterable[str] = "data", \
-    # crs: Any | None = None, res: float | None = None, \
-    # bands: Sequence[str] | None = None, transforms: Callable[[dict[str, Any]], \
-    # dict[str, Any]] | None = None, cache: bool = True) -> None:
-    #     super().__init__(paths, crs, res, bands, transforms, cache):
-    #     pass
-
-    # for arg in args:
-    #     print(arg)
-
-    # '''
-    # method to return data for training/testing/validation
-
-    # 1. given bounds, read image
-    # 2. normalize bands as appropriate
-    # 3. apply transforms as appropriate
-    # 4. return image
-    # '''
