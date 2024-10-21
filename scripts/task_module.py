@@ -20,6 +20,7 @@ from torchgeo.trainers import BaseTask
 
 # misc imports
 import numpy as np
+import random
 from kornia.enhance import normalize
 
 
@@ -41,6 +42,8 @@ class DeepDEMRegressionTask(BaseTask):
         self,
         **model_kwargs: dict,
     ):
+        self.save_hyperparameters(ignore=['transforms'])
+
         self.model_kwargs = model_kwargs
         assert set(["model", "bands"]).issubset(
             set(self.model_kwargs.keys())
@@ -52,7 +55,6 @@ class DeepDEMRegressionTask(BaseTask):
         # this will remain constant in an experiment, for a given chip size
         self.gsf = self.GSF_DICT[self.model_kwargs["chip_size"]]
 
-        super().__init__()
         self.lr_scheduler = self.model_kwargs['lr_scheduler']
         self.lr_scheduler_scale_factor = self.model_kwargs['lr_scheduler_scale_factor']
         self.lr_scheduler_patience = self.model_kwargs['lr_scheduler_patience']
@@ -64,6 +66,7 @@ class DeepDEMRegressionTask(BaseTask):
 
         self.train_losses = []
         self.val_losses = []
+        super().__init__()
 
     def configure_models(self):
         """Initialize and configure model"""
@@ -92,10 +95,7 @@ class DeepDEMRegressionTask(BaseTask):
         The model uses L1 loss
         We exclude no data regions from the loss calculation
         """
-        # print("Types: ", type(y), type(y_hat))
         loss = nn.functional.l1_loss(y, y_hat, reduction="none")
-
-        # print("calculated loss: ", (loss * mask).sum() / mask.sum())
 
         return (loss * mask).sum() / mask.sum()
 
@@ -132,6 +132,23 @@ class DeepDEMRegressionTask(BaseTask):
             )
         except ValueError:
             pass
+        
+        # left/right channel swap
+        if (self.model_kwargs['channel_swap']) and (kwargs['stage']=='train'):
+            try:
+                index1, index2 = self.model_kwargs["bands"].index("ortho_left"), self.model_kwargs["bands"].index("ortho_right")
+                _left, _right = img[:, index1, ...], img[:, index2, ...]
+                _left_new, _right_new = _left.detach().clone(), _right.detach().clone()
+                for i in range(img.shape[0]):
+                    if random.random() > 0.5:
+                        _left_new[i] = _right[i]
+                        _right_new[i] = _left[i]
+
+
+                img[:, index1, ...] = _left_new
+                img[:, index2, ...] = _right_new
+            except ValueError:
+                pass
 
         output = self.model.forward(img).squeeze()
         output = output*self.gsf + initial_dsm
@@ -159,15 +176,15 @@ class DeepDEMRegressionTask(BaseTask):
             x[:, -1, ...].squeeze(),
         )  # the lidar data is the last channel
         batch_size = x.shape[0]
-        y_hat = self.forward(x).squeeze()
+        y_hat = self.forward(x, stage='train').squeeze()
         mask = self.return_batch_mask(x)
         loss: Tensor = self.model_loss(y_hat, y, mask)
         self.log("train_loss", loss)
-        self.train_losses.apped(loss)
+        self.train_losses.append(loss)
         return loss
     
     def on_train_epoch_end(self):
-        self.log("train_epoch_loss", self.train_losses/len(self.train_losses))
+        self.log("train_epoch_loss", torch.tensor(self.train_losses).sum()/len(self.train_losses))
         self.train_losses = []
 
     def validation_step(self, *args, **kwargs):
@@ -176,7 +193,7 @@ class DeepDEMRegressionTask(BaseTask):
         x = batch["image"]
         x, y = x[:, :-1, ...], x[:, -1, ...].squeeze()
         batch_size = x.shape[0]
-        y_hat = self.forward(x).squeeze()
+        y_hat = self.forward(x, stage='validation').squeeze()
         mask = self.return_batch_mask(x)
         loss: Tensor = self.model_loss(y_hat, y, mask)
         self.val_losses.append(loss)
@@ -184,7 +201,7 @@ class DeepDEMRegressionTask(BaseTask):
         return loss
     
     def on_validation_epoch_end(self):
-        self.log("val_epoch_loss", self.val_losses/len(self.val_losses))
+        self.log("val_epoch_loss", torch.tensor(self.val_losses).sum()/len(self.val_losses))
         self.val_losses = []
 
     def test_step(self, *args, **kwargs):
@@ -193,31 +210,37 @@ class DeepDEMRegressionTask(BaseTask):
         x = batch["image"]
         x, y = x[:, :-1, ...], x[:, -1, ...].squeeze()
         batch_size = x.shape[0]
-        y_hat = self.forward(x).squeeze()
+        y_hat = self.forward(x, stage='test').squeeze()
         mask = self.return_batch_mask(x)
         loss: Tensor = self.model_loss(y_hat, y, mask)
         self.log("test_loss", loss, batch_size=batch_size)
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configuring optimizers"""
-        optimizer = optim.Adam(self.parameters(), lr=self.model_kwargs['lr'])
+        
+        optimizer_scheduler_dict = {}
+
+        self.optimizer = optim.Adam(self.parameters(), lr=self.model_kwargs['lr'])
+        optimizer_scheduler_dict.update({
+            'optimizer':self.optimizer
+        })
 
         # Define scheduler
-        scheduler = None
+        self.scheduler = None
         if self.lr_scheduler:
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode="min", factor=self.lr_scheduler_scale_factor,
-                patience=self.lr_scheduler_patience, verbose=True, threshold=0.1
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode="min", factor=self.lr_scheduler_scale_factor,
+                patience=self.lr_scheduler_patience, verbose=True, threshold=0.1,
+                min_lr=1e-6
             )
 
-        self.scheduler = scheduler
-        self.optimizer = optimizer
+            optimizer_scheduler_dict.update({
+                "lr_scheduler": {
+                    "scheduler": self.scheduler,
+                    "monitor": "val_epoch_loss",
+                    "frequency": 1,
+                },                
+            })
 
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-                "frequency": 1,
-            },
-        }
+        
+        return optimizer_scheduler_dict
