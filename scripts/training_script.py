@@ -1,13 +1,16 @@
+# This is the training script used to run all the experiments for the DeepDEM paper
+# The experiments we run are: 
+# 1. Effect of chip sizes on model training
+# 2. Effect of excluding NDVI from model training
+# 3. Using UNet vs UNet+ResNet architecture
+# 4. Impact of using non-aligned ortho images (traditional processing)
+# 5. Training on DTM vs DSM
 
-import sys
 from pathlib import Path
-from torchgeo.datasets.utils import BoundingBox
 from torchgeo.datasets import stack_samples
-from torchgeo.samplers import RandomBatchGeoSampler
 import torch
 from torch import nn 
 
-from datetime import datetime
 from pytorch_lightning.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -27,8 +30,6 @@ CHANNEL_SWAP = True
 transforms = nn.Sequential(
     K.RandomHorizontalFlip(p=0.5),
     K.RandomVerticalFlip(p=0.5),
-    K.RandomBrightness(brightness = (0.5,2.),p=0.5),
-    K.RandomContrast(contrast = (0.5,2.),p=0.5)
 )
 
 bands = [
