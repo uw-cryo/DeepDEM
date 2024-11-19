@@ -53,7 +53,7 @@ class DeepDEMRegressionTask(BaseTask):
         else:
             self.GSF_DICT = model_kwargs['GSF_DICT']
         
-        self.gsf = self.GSF_DICT[self.model_kwargs["chip_size"]]
+        self.gsf = self.GSF_DICT[model_kwargs["chip_size"]]
 
         self.save_hyperparameters(ignore=['transforms'])
 
