@@ -10,8 +10,6 @@ from torchgeo.samplers import RandomBatchGeoSampler
 import kornia as K
 from kornia.enhance import normalize
 
-from lightning.pytorch import LightningDataModule
-
 import rasterio
 import numpy as np
 import traceback
@@ -127,6 +125,10 @@ class CustomDataModule(GeoDataModule):
         self.train_aug = kwargs['train_aug'] if 'train_aug' in kwargs else None
         self.val_aug = kwargs['val_aug'] if 'val_aug' in kwargs else None
         self.test_aug = kwargs['test_aug'] if 'test_aug' in kwargs else None
+
+        if 'train_split' in kwargs:
+            print(f"CustomDataModule: Using the left {100*kwargs['train_split']}% of the input image for training, remaining for validation")
+        self.train_split = kwargs['train_split'] if 'train_split' in kwargs else 0.8
         self.kwargs = kwargs
 
     def setup(self, stage: str) -> None:
@@ -146,12 +148,13 @@ class CustomDataModule(GeoDataModule):
             xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
             y_extent = ymax - ymin
             x_extent = xmax - xmin
+            
+            # we split the input raster vertically into train and validate regions
+            x_split = xmin + self.train_split * x_extent 
 
-            train_roi = BoundingBox(xmin, xmin + 0.8*x_extent, ymin, ymax, tmin, tmax)
-            val_roi = BoundingBox(
-                xmin + 0.8*x_extent, xmax, ymin, ymax, tmin, tmax
-            )
-
+            train_roi = BoundingBox(xmin, x_split, ymin, ymax, tmin, tmax)
+            val_roi = BoundingBox(x_split, xmax, ymin, ymax, tmin, tmax)
+            
             self.train_sampler = RandomBatchGeoSampler(
                 self.dataset,
                 batch_size=self.kwargs['batch_size'],
@@ -166,6 +169,7 @@ class CustomDataModule(GeoDataModule):
                 roi=val_roi,
             ) # type: ignore
 
+        # We do not currently have a test_step, but write out a test_sampler for future use
         if stage == "test":
             xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
             y_extent = ymax - ymin
@@ -256,4 +260,7 @@ class CustomDataModule(GeoDataModule):
         if self.trainer.training and self.train_aug:
             batch['image'] = self.train_aug(batch['image'])
 
+        return batch
+
+    def on_before_batch_transfer(self, batch, dataloader_idx):
         return batch
