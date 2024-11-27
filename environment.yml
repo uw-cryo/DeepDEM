@@ -9,8 +9,8 @@ dependencies:
  - geopandas
  - matplotlib
  - numpy=1.26.4
+ - python-pdal==3.3.0
  - pdal
- - python-pdal
  - pytorch
  - pytorch-cuda=11.8
  - torchgeo
@@ -20,4 +20,5 @@ dependencies:
  - smp
  - tqdm
  - ipyleaflet
- - pdal
+ - scikit-build
+ - scikit-image
