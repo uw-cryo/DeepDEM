@@ -47,8 +47,8 @@ class DeepDEMRegressionTask(BaseTask):
     ):
                 
         if 'GSF_DICT' not in model_kwargs:
-            print("*** Loading global scaling factors for WV1 Mt Baker data ***")
-            print("*** This can be overridden when initializing model (DeepDEMRegressionTask) ***")
+            print("DeepDEMRegressionTask: *** Loading global scaling factors for WV1 Mt Baker data ***")
+            print("DeepDEMRegressionTask: *** This can be overridden when initializing model (DeepDEMRegressionTask) ***")
             # this will remain constant in an experiment, for a given chip size
         else:
             self.GSF_DICT = model_kwargs['GSF_DICT']
@@ -124,24 +124,6 @@ class DeepDEMRegressionTask(BaseTask):
         except ValueError:
             # if an initial dsm is not provided, we assume zero values
             initial_dsm = torch.zeros_like(img[:, 0, ...].squeeze())
-
-        # scale ortho_left image
-        try:
-            index = self.model_kwargs["bands"].index("ortho_left")
-            img[:, index, ...] = normalize(
-                img[:, index, ...], self.left_ortho_mean, self.left_ortho_std
-            )
-        except ValueError:
-            pass
-
-        # scale ortho_right image
-        try:
-            index = self.model_kwargs["bands"].index("ortho_right")
-            img[:, index, ...] = normalize(
-                img[:, index, ...], self.right_ortho_mean, self.right_ortho_std
-            )
-        except ValueError:
-            pass
         
         # left/right channel swap
         if (self.model_kwargs['channel_swap']) and (kwargs['stage']=='train'):
