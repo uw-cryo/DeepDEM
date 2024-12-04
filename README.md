@@ -1,4 +1,6 @@
 # DeepDEM
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14270049.svg)](https://doi.org/10.5281/zenodo.14270049)
+
 This repository demonstrates the use of deep learning as an intelligent post-processing filter in refining digital surface models generated from satellite imagery.
 
 <p align="center">
@@ -32,8 +34,13 @@ Code in this repository can be used to train new models, as well as genenrate in
 
 ### Sample outputs
 
-# Paper
+## Paper
 
 
 ### Additional notes
 This work is based on the [ResDepth](https://github.com/prs-eth/ResDepth/) work of Stucker et al. (2021), but extends the application to vegetation and natural surfaces and uses LIDAR data as a source of ground truth in place of well defined CAD models. The work here also demonstrates using this approach to generate Digital Terrain Models (DTM) from satellite imagery and and an initially derived DSM. We also explore the utility of additional input layers, self consistent orthorectification, and improved network architectures towards refining initial estimates of DSMs generated using photogrammetry.
+
+## License
+
+## Citation
+See CITATION.cff
