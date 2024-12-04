@@ -11,9 +11,11 @@ This repository contains code in the form of Jupyter notebooks and Python script
 ### Installing dependencies
 The included environment file can be used to create an conda environment containing dependencies needed to run the codes in this repository. We recommend using [`mamba`](https://github.com/conda-forge/miniforge) to speed up the install process. The environment is created and activated by the following commands from the root directory of the repository:
 
+```
 mamba env create -f environment.yml
 ...
 mamba activate deep_dem
+```
 
 ### Training models
 
