@@ -1,9 +1,11 @@
 # DeepDEM
-This repository demonstrates the use of deep learning as an intelligent post-processing filter in refining digital surface models generated from satellite imagery.
+This repository demonstrates the use of deep learning as an intelligent post-processing filter in refining digital surface models (DSMs) generated from satellite imagery.
 
 <p align="center">
 <img src="docs/DeepDEM block diagram.png" width="800">
 </p>
+
+DeepDEM uses a UNet architecture with a ResNet based echoder to perform residual refinement for digital surface models. The model accepts orthorectified stereo satellite images and an initial DSM estimate (along with other ancilliary inputs) and calculates residuals that minimize the L1 loss when comparing model outputs to ground truth generated from LIDAR data.
 
 ### Overview of repository
 This repository contains code in the form of Jupyter notebooks and Python scripts needed to train and generate inferences from satellite imagery and initial DSM estimates. It is assumed that the user has access to stereo satellite imagery and is familar with stereogrammetry tools (we use the [Ames Stereo Pipeline software package](https://stereopipeline.readthedocs.io/en/latest/introduction.html)) to generate the inputs needed for DeepDEM.
