@@ -10,6 +10,17 @@ DeepDEM uses a UNet architecture with a ResNet based encoder to perform residual
 ## Overview of repository
 This repository contains code in the form of Jupyter notebooks and Python scripts needed to train and generate inferences from satellite imagery and initial DSM estimates. It is assumed that the user has access to stereo satellite imagery and is familar with stereogrammetry tools (we use the [Ames Stereo Pipeline software package](https://stereopipeline.readthedocs.io/en/latest/introduction.html)) to generate the inputs needed for DeepDEM.
 
+## DeepDEM in action
+<p align="center">
+<img src="docs/fig1.png" width="800">
+</p>
+
+<p align="center">
+<img src="docs/fig2.png" width="800">
+</p>
+
+These plots show the satellite stereo image inputs to the model (far left), along with the intial DSM (second column top) and mask of valid pixels for which a DSM estimate was generated using ASP (second column bottom). The ground truth DSM and DTM are shown in the third column, along with the model outputs in the last column.
+
 ## Using this repository
 
 ### Installing dependencies
