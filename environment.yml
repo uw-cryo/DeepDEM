@@ -22,3 +22,4 @@ dependencies:
  - ipyleaflet
  - scikit-build
  - scikit-image
+ - earthaccess
