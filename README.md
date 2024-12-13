@@ -41,16 +41,19 @@ It is expected that user has access to panchromatic (single channel) stereo sate
 DeepDEM primarily uses [PyTorch-lightning](https://github.com/Lightning-AI/pytorch-lightning), [TorchGeo](https://github.com/microsoft/torchgeo), and [Segmentation Models for PyTorch](https://github.com/qubvel-org/segmentation_models.pytorch)
 
 ### Notebooks
-The notebooks are labeled in the sequence of execution for a general use case. Users begin by downloading USGS 3DEP data (if available) for their study site (`0a_Download_LIDAR_data.ipynb`) and HLS data (`0b_Download_HLS_data.ipynb`). Along with the stereo images, initial DSM and map of triangulation errors (generated using tools like ASP), the rasters are ready for preprocessing (`0c_Data_Preprocessing.ipynb`) which reprojects all rasters to the same CRS, calculates an NDVI raster, calculates a nodata mask raster and applies adaptive histogram normalization to the satellite imagery. The rasters are now ready to be used by the model for training.
+The notebooks are labeled in the sequence of execution for a general use case. Users begin by downloading [USGS 3DEP data](https://www.usgs.gov/3d-elevation-program) (if available) for their study site (`0a_Download_LIDAR_data.ipynb`) and HLS data (`0b_Download_HLS_data.ipynb`). If relevant LIDAR data is available through 3DEP, the `0a_Download_LIDAR_data.ipynb` notebook can be used to generate either a DSM or a DTM. Along with the stereo images, initial DSM and map of triangulation errors (generated using tools like ASP), the rasters are ready for preprocessing (`0c_Data_Preprocessing.ipynb`) which reprojects all rasters to the same CRS, calculates an NDVI raster, calculates a nodata mask raster and applies adaptive histogram normalization to the satellite imagery. The rasters are now ready to be used by the model for training.
 
-As part of the model training, the input DSM are scaled by the sample mean and a global scaling factor that is pre-computed across a scene. This scaling factor is chip size dependent, and is calculated for reference in the `0d_Calculating_Scale_Factor.ipynb` notebook. *Note: the user has to manually override model defaults during training/inference for this to work correctly for their datasets*
+As part of the model training, the input DSM are scaled by the sample mean and a global scaling factor that is pre-computed across a scene. This scaling factor is chip size dependent, and is calculated for reference in the `0d_Calculating_Scale_Factor.ipynb` notebook. *Note: the user has to manually override model defaults with values produced by this notebook during training/inference for it to work correctly for their datasets*
 
-The notebook `1a_TrainDeepDEM.ipynb` demonstrates training the DeepDEM model
+The notebook `1a_TrainDeepDEM.ipynb` demonstrates training the DeepDEM model for the "standard" case of using a pair of stereo images, an initial DSM and associated triangulation error map, NDVI data and a no-data mask as the input channels. The ground truth for the results demonstrated here are obtained from the [3DEP LIDAR survey of Mt Baker in 2015](https://data.usgs.gov/datacatalog/data/USGS:58518b0ee4b0f99207c4f12c).
 
 ### Scripts and modules
+A more expansive example of model training is provided under `scripts/1a_TrainDeepDEM.py`. This script show how training parameters can be changed for various experiments, including model architecture, model inputs, and training hyperpameters.
+
+The code for the model dataloader is given in `scripts/dataset_modules.py`. This module defines `TorchGeo` derived classes that are used to define `Datasets` and `DataModules`. `Datasets` groups together raster files that comprise an area of study, making it easy to query spatial/temporal bounds, calculate raster statistics for each layer, and is a part of the internal plumbing to pass around data during training and inference. `DataModules` are a [Pytorch-Lightning](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) concept which is also implemented in `TorchGeo`, which encapsulates all of the methods needed to process data during model training, namely setting up dataloaders, and moving data between CPU/GPU.
 
 ### Introducing new datasets
-Code in this repository can be used to train new models, as well as genenrate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors)
+Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors)
 
 ### Trained models
 
