@@ -34,11 +34,11 @@ class DeepDEMRegressionTask(BaseTask):
     # These values can be overridden by providing a dictionary containing
     # chip size:scaling factor key value pairs when initializing the model
     GSF_DICT = {
-        64: tensor(9.88),
-        128: tensor(18.71),
-        256: tensor(35.16),
-        512: tensor(64.32),
-        1024: tensor(111.88),
+        64: tensor(9.86),
+        128: tensor(18.59),
+        256: tensor(34.90),
+        512: tensor(63.51),
+        1024: tensor(112.11),
     }
 
     def __init__(
