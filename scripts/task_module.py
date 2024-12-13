@@ -69,11 +69,6 @@ class DeepDEMRegressionTask(BaseTask):
         self.lr_scheduler_scale_factor = self.model_kwargs['lr_scheduler_scale_factor']
         self.lr_scheduler_patience = self.model_kwargs['lr_scheduler_patience']
 
-        self.left_ortho_mean = tensor(self.model_kwargs["left_ortho_mean"])
-        self.left_ortho_std = tensor(self.model_kwargs["left_ortho_std"])
-        self.right_ortho_mean = tensor(self.model_kwargs["right_ortho_mean"])
-        self.right_ortho_std = tensor(self.model_kwargs["right_ortho_std"])
-
         self.train_losses = []
         self.val_losses = []
         super().__init__()
