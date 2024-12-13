@@ -50,7 +50,11 @@ The notebook `1a_TrainDeepDEM.ipynb` demonstrates training the DeepDEM model for
 ### Scripts and modules
 A more expansive example of model training is provided under `scripts/1a_TrainDeepDEM.py`. This script show how training parameters can be changed for various experiments, including model architecture, model inputs, and training hyperpameters.
 
+Inference script: 
+
 The code for the model dataloader is given in `scripts/dataset_modules.py`. This module defines `TorchGeo` derived classes that are used to define `Datasets` and `DataModules`. `Datasets` groups together raster files that comprise an area of study, making it easy to query spatial/temporal bounds, calculate raster statistics for each layer, and is a part of the internal plumbing to pass around data during training and inference. `DataModules` are a [Pytorch-Lightning](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) concept which is also implemented in `TorchGeo`, which encapsulates all of the methods needed to process data during model training, namely setting up dataloaders, and moving data between CPU/GPU.
+
+`scripts/task_module.py` defines the `DeepDEMRegressionTask` class, which defines the DeepDEM model and all of the associated methods, such as `training_step`, `validation_step` and the primary method to pipe data through the model, `forward`. This class also defines the default data global scaling factors (`GSF_DICT`) which can be overridden by passing in a dictionary of values during model initialization.
 
 ### Introducing new datasets
 Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors)
