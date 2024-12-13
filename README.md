@@ -48,26 +48,21 @@ As part of the model training, the input DSM are scaled by the sample mean and a
 The notebook `1a_TrainDeepDEM.ipynb` demonstrates training the DeepDEM model for the "standard" case of using a pair of stereo images, an initial DSM and associated triangulation error map, NDVI data and a no-data mask as the input channels. The ground truth for the results demonstrated here are obtained from the [3DEP LIDAR survey of Mt Baker in 2015](https://data.usgs.gov/datacatalog/data/USGS:58518b0ee4b0f99207c4f12c).
 
 ### Scripts and modules
-A more expansive example of model training is provided under `scripts/1a_TrainDeepDEM.py`. This script show how training parameters can be changed for various experiments, including model architecture, model inputs, and training hyperpameters.
+A more in-depth example of model training is provided under `scripts/1a_TrainDeepDEM.py`. This script show how training parameters can be changed for various experiments, including model architecture, model inputs, and training hyperpameters. An example script to generate inferences is given in `scripts/1b_GenerateInferences.py`. This script requires the user to have a trained model, along with the appropriate inputs.
 
-Inference script: 
-
-The code for the model dataloader is given in `scripts/dataset_modules.py`. This module defines `TorchGeo` derived classes that are used to define `Datasets` and `DataModules`. `Datasets` groups together raster files that comprise an area of study, making it easy to query spatial/temporal bounds, calculate raster statistics for each layer, and is a part of the internal plumbing to pass around data during training and inference. `DataModules` are a [Pytorch-Lightning](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) concept which is also implemented in `TorchGeo`, which encapsulates all of the methods needed to process data during model training, namely setting up dataloaders, and moving data between CPU/GPU.
+The code for the model dataloader is given in `scripts/dataset_modules.py`. This module defines `TorchGeo` derived classes that are used to define `Datasets` and `DataModules`. `Datasets` groups together raster files that comprise an area of study, making it easy to query spatial/temporal bounds, calculate raster statistics for each layer, and is a part of the internal plumbing to pass around data during training and inference. `DataModules` are a [Pytorch-Lightning](https://lightning.ai/docs/pytorch/stable/data/datamodule.html) idea implemented in `TorchGeo`, which encapsulates all of the methods needed to process data during model training - in this case setting up dataloaders and handing data movement between CPU/GPU.
 
 `scripts/task_module.py` defines the `DeepDEMRegressionTask` class, which defines the DeepDEM model and all of the associated methods, such as `training_step`, `validation_step` and the primary method to pipe data through the model, `forward`. This class also defines the default data global scaling factors (`GSF_DICT`) which can be overridden by passing in a dictionary of values during model initialization.
 
 ### Introducing new datasets
-Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors)
+Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors). The user can use the numbered workflow of the Jupyter notebooks listed above and pipe the processed data through the model. If performing only inferences, the `1a_TrainDeepDEM.ipynb` notebook should be skipped, with only the path to weights from a trained model being provided in `1b_Generate_Inferences.ipynb`
 
 ### Trained models
-
-### Sample outputs
+DeepDEM model weights trained using WorldView imagery and coincident 3DEP LIDAR data from September 2015  is available at. 
 
 ## Paper
 
 # 
-
-## License
 
 ## Citation
 See CITATION.cff
