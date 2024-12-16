@@ -287,7 +287,7 @@ bands = [
 
 MODEL_ENCODERS = ['resnet34', 'resnet50']
 MODEL_TYPE = 'smp-unet'
-CHIP_SIZE =  512
+CHIP_SIZE =  256
 EXPERIMENT_NUMBER=4
 
 for MODEL_ENCODER in MODEL_ENCODERS:
