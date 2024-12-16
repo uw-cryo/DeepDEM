@@ -14,7 +14,7 @@ from pathlib import Path
 import kornia.augmentation as K
 
 # local imports
-from dataset_modules import CustomInputDataset, CustomDataModule
+from dataset_modules import CustomDataModule
 from task_module import DeepDEMRegressionTask
 
 torch.set_float32_matmul_precision('medium')
