@@ -22,7 +22,7 @@ torch.set_float32_matmul_precision('medium')
 BATCH_SIZE = 24
 NUM_WORKERS = 12
 CHANNEL_SWAP = True
-FAST_DEV_RUN = True # Set to True if doing debugging/sanity check run
+FAST_DEV_RUN = False # Set to True if doing debugging/sanity check run
 
 # Determines the fraction of the image used for training along x-axis, manually determined
 # For the Mt Baker dataset, there are large swathes of no-data region on one side of the image
