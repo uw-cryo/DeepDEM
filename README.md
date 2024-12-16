@@ -47,6 +47,8 @@ As part of the model training, the input DSM are scaled by the sample mean and a
 
 The notebook `1a_TrainDeepDEM.ipynb` demonstrates training the DeepDEM model for the "standard" case of using a pair of stereo images, an initial DSM and associated triangulation error map, NDVI data and a no-data mask as the input channels. The ground truth for the results demonstrated here are obtained from the [3DEP LIDAR survey of Mt Baker in 2015](https://data.usgs.gov/datacatalog/data/USGS:58518b0ee4b0f99207c4f12c).
 
+The notebook `2a_GenerateInferences.ipynb` demonstrates loading pre-trained model weights, followed by running inferences on an images. The inferences can be stitched together either using `rasterio` or `ASP`, and code for both is provided. This notebook also demonstrates generating hillshades for DSMs (using `gdaldem`).
+
 ### Scripts and modules
 A more in-depth example of model training is provided under `scripts/1a_TrainDeepDEM.py`. This script show how training parameters can be changed for various experiments, including model architecture, model inputs, and training hyperpameters. An example script to generate inferences is given in `scripts/1b_GenerateInferences.py`. This script requires the user to have a trained model, along with the appropriate inputs.
 
@@ -58,7 +60,17 @@ The code for the model dataloader is given in `scripts/dataset_modules.py`. This
 Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors). The user can use the numbered workflow of the Jupyter notebooks listed above and pipe the processed data through the model. If performing only inferences, the `1a_TrainDeepDEM.ipynb` notebook should be skipped, with only the path to weights from a trained model being provided in `1b_Generate_Inferences.ipynb`
 
 ### Trained models
-DeepDEM model weights trained using WorldView imagery and coincident 3DEP LIDAR data from September 2015  is available at. 
+DeepDEM model weights trained using WorldView imagery and coincident 3DEP LIDAR data from September 2015 is available at. 
+
+The code to train DeepDEM is setup such that a lot of training metadata is stored along with the model weights in the checkpoint files withing the `model_kwargs` dictionary. For example, the following code snippet demonstrates querying the bands and path to training data used when training a specific model: 
+
+```
+>>> model = DeepDEMRegressionTask.load_from_checkpoint(path_to_checkpoint)
+>>> print(f"Bands used for training: {model.model_kwargs['bands']} \Data path: {model.model_kwargs['datapath']}")
+
+Bands used for training: ['asp_dsm', 'ortho_left', 'ortho_right', 'ndvi', 'nodata_mask', 'triangulation_error'] 
+Data path: /mnt/working/karthikv/DeepDEM/data/mt_baker/WV01_20150911_1020010042D39D00_1020010043455300/processed_rasters
+```
 
 ## Paper
 
