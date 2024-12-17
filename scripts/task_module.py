@@ -123,7 +123,7 @@ class DeepDEMRegressionTask(BaseTask):
         # left/right channel swap
         if (self.model_kwargs['channel_swap']) and (kwargs['stage']=='train'):
             try:
-                index1, index2 = self.model_kwargs["bands"].index("ortho_left"), self.model_kwargs["bands"].index("ortho_right")
+                index1, index2 = self.model_kwargs["bands"].index("ortho_channel1"), self.model_kwargs["bands"].index("ortho_channel2")
                 _left, _right = img[:, index1, ...], img[:, index2, ...]
                 _left_new, _right_new = _left.detach().clone(), _right.detach().clone()
                 for i in range(img.shape[0]):

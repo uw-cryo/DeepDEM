@@ -30,8 +30,8 @@ class CustomInputDataset(RasterDataset):
     filename_regex = r"final_(?P<band>[a-z_]+)\.tif"
     all_bands = [
         "asp_dsm",
-        "ortho_left",
-        "ortho_right",
+        "ortho_channel1",
+        "ortho_channel2",
         "ndvi",
         "nodata_mask",
         "triangulation_error",
@@ -88,7 +88,10 @@ class CustomInputDataset(RasterDataset):
 
         assert band in self.bands, f"Band '{band}' not available in dataset. Check path and object initialization"
 
-        filename = [x for x in self.files if 'ortho_left' in x][0]
+        filename = [x for x in self.files if band in x]
+        assert len(filename) == 1, f"Multiple files were found for this band when querying dataset. Please examine files at {self.paths.resolve()}"
+        filename = filename[0
+                            ]
         with rasterio.open(filename) as ds:
             array = ds.read()
 
