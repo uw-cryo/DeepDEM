@@ -55,6 +55,7 @@ class CustomInputDataset(RasterDataset):
         lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
 
         bands = kwargs['bands']
+
         if stage == 'train':
             assert lidar_data_index != -1, "Either DTM or DSM must be specified as part of inputs!"
 
@@ -86,7 +87,7 @@ class CustomInputDataset(RasterDataset):
             The standard deviation of the values within the 5th and 95th percentile range.
         """
 
-        assert band in self.bands, f"Band '{band}' not available in dataset. Check path and object initialization"
+        assert band in self.bands, f"Band {band} not available in dataset. Check path and object initialization"
 
         filename = [x for x in self.files if band in x]
         assert len(filename) == 1, f"Multiple files were found for this band when querying dataset. Please examine files at {self.paths.resolve()}"
