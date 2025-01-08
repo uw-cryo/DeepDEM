@@ -56,6 +56,9 @@ The code for the model dataloader is given in `scripts/dataset_modules.py`. This
 
 `scripts/task_module.py` defines the `DeepDEMRegressionTask` class, which defines the DeepDEM model and all of the associated methods, such as `training_step`, `validation_step` and the primary method to pipe data through the model, `forward`. This class also defines the default data global scaling factors (`GSF_DICT`) which can be overridden by passing in a dictionary of values during model initialization.
 
+### Before training new models
+It is recommended that users examine the _processed_ input rasters (e.g. plotting using matplotlib, loading in QGIS, calculate statistics) ahead of running the training script. This is to ensure that all of the datasets are correctly projected and aligned, and will serve as a sanity check before trying to train a model.
+
 ### Introducing new datasets
 Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors). The user can use the numbered workflow of the Jupyter notebooks listed above and pipe the processed data through the model. If performing only inferences, the `1a_TrainDeepDEM.ipynb` notebook should be skipped, with only the path to weights from a trained model being provided in `1b_Generate_Inferences.ipynb`
 
