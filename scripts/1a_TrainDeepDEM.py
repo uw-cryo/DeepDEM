@@ -14,6 +14,8 @@ from pathlib import Path
 import kornia.augmentation as K
 
 # local imports
+import sys
+sys.path.insert(0, str(Path('.').absolute().parent/'lib'))
 from dataset_modules import CustomDataModule
 from task_module import DeepDEMRegressionTask
 
@@ -35,15 +37,15 @@ transforms = nn.Sequential(
     K.RandomVerticalFlip(p=0.5),
 )
 
-bands = [
-    "asp_dsm",
-    "ortho_left",
-    "ortho_right",
-    "ndvi",
-    "nodata_mask",
-    "triangulation_error",
-    "lidar_data",
-]
+# bands = [
+#     "asp_dsm",
+#     "ortho_channel1",
+#     "ortho_channel2",
+#     "ndvi",
+#     "nodata_mask",
+#     "triangulation_error",
+#     "lidar_data",
+# ]
 
 datamodule_params_template = {
     'dataset_class':CustomDataModule,
@@ -80,8 +82,8 @@ datapath = '/mnt/working/karthikv/DeepDEM/data/mt_baker/WV01_20150911_1020010042
 
 bands = [
     "asp_dsm",
-    "ortho_left",
-    "ortho_right",
+    "ortho_channel1",
+    "ortho_channel2",
     "ndvi",
     "nodata_mask",
     "triangulation_error",
@@ -149,8 +151,8 @@ datapath = '/mnt/working/karthikv/DeepDEM/data/mt_baker/WV01_20150911_1020010042
 
 bands = [
     "asp_dsm",
-    "ortho_left",
-    "ortho_right",
+    "ortho_channel1",
+    "ortho_channel2",
     # "ndvi",
     "nodata_mask",
     "triangulation_error",
@@ -213,8 +215,8 @@ datapath = '/mnt/working/karthikv/DeepDEM/data/mt_baker/WV01_20150911_1020010042
 
 bands = [
     "asp_dsm",
-    "ortho_left",
-    "ortho_right",
+    "ortho_channel1",
+    "ortho_channel2",
     "ndvi",
     "nodata_mask",
     "triangulation_error",
@@ -277,8 +279,8 @@ datapath = '/mnt/working/karthikv/DeepDEM/data/mt_baker/WV01_20150911_1020010042
 
 bands = [
     "asp_dsm",
-    "ortho_left",
-    "ortho_right",
+    "ortho_channel1",
+    "ortho_channel2",
     "ndvi",
     "nodata_mask",
     "triangulation_error",

@@ -20,6 +20,8 @@ from multiprocessing import Pool
 import time
 
 # local imports
+import sys
+sys.path.insert(0, str(Path('.').absolute().parent/'lib'))
 from task_module import DeepDEMRegressionTask
 from dataset_modules import CustomInputDataset
 

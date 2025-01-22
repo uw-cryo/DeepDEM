@@ -51,12 +51,12 @@ class CustomInputDataset(RasterDataset):
         except:
             pass
 
-        assert (lidar_dsm_index == -1) or (lidar_dtm_index == -1), "Only one of DTM or DSM can be provided in input bands!"
-        lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
-
         bands = kwargs['bands']
 
         if stage == 'train':
+            assert (lidar_dsm_index == -1) or (lidar_dtm_index == -1), "Only one of DTM or DSM can be provided in input bands!"
+            lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
+        
             assert lidar_data_index != -1, "Either DTM or DSM must be specified as part of inputs!"
 
             # Training labels from LIDAR must be the last channel
