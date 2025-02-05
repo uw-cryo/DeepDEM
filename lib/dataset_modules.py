@@ -134,9 +134,10 @@ class RandomPatchDataset(Dataset):
 
     def __getitem__(self, index):
         
-        i = np.random.randint(self.roi[0], self.roi[1] - self.chipsize, 1)[0]
-        j = np.random.randint(self.roi[2], self.roi[3] - self.chipsize, 1)[0]
-        window = from_bounds(i, j, i+self.chipsize, j+self.chipsize, self.transform)
+        i = np.random.randint(self.roi[0]+1, self.roi[1] - (self.transform[0]*self.chipsize)-1, 1)[0]
+        j = np.random.randint(self.roi[2]+1, self.roi[3] - (abs(self.transform[4])*self.chipsize)-1, 1)[0]
+        window = from_bounds(i, j, i+(self.transform[0]*self.chipsize), 
+                             j+(abs(self.transform[4])*self.chipsize), self.transform)
         
         images = []
         for band in self.bands:
@@ -192,17 +193,19 @@ class CustomDataModule(LightningDataModule):
         """
 
         if stage in ["fit", "validate"]:
-            self.dataset = CustomInputDataset(**self.kwargs)
-
-            xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
+            with rasterio.open(f'{self.kwargs['paths']}/final_{self.kwargs['bands'][0]}.tif') as ds:
+                roi = ds.bounds
+                
+            xmin, ymin, xmax, ymax = list(roi)
+            
             y_extent = ymax - ymin
             x_extent = xmax - xmin
             
             # we split the input raster vertically into train and validate regions
             x_split = xmin + self.train_split * x_extent 
 
-            train_roi = [xmin, x_split, ymin, ymax, tmin, tmax]
-            val_roi = [x_split, xmax, ymin, ymax, tmin, tmax]
+            train_roi = [xmin, x_split, ymin, ymax]
+            val_roi = [x_split, xmax, ymin, ymax]
             
             self.train_dataset = RandomPatchDataset(
                 self.kwargs['bands'],
@@ -222,12 +225,12 @@ class CustomDataModule(LightningDataModule):
 
         # We do not currently have a test_step, but write out a test_sampler for future use
         if stage == "test":
-            xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
+            xmin, ymin, xmax, ymax = list(roi)
             y_extent = ymax - ymin
             x_extent = xmax - xmin
 
             test_roi = [
-                xmin + 0.8 * x_extent, xmax, ymin + 0.5 * y_extent, ymax, tmin, tmax
+                xmin + 0.8 * x_extent, xmax, ymin + 0.5 * y_extent, ymax
             ]
             self.test_dataset = RandomPatchDataset(
                 self.kwargs['bands'],
