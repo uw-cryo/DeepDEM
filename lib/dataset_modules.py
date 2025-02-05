@@ -1,7 +1,7 @@
 from typing import Iterable, Sequence
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchgeo.datamodules.utils import MisconfigurationException
 from torchgeo.datamodules import GeoDataModule
 from torchgeo.datasets import RasterDataset, BoundingBox, stack_samples
@@ -9,8 +9,11 @@ from torchgeo.samplers import RandomBatchGeoSampler
 
 import kornia as K
 from kornia.enhance import normalize
+from lightning.pytorch import LightningDataModule
 
+import random
 import rasterio
+from rasterio.windows import from_bounds
 import numpy as np
 import traceback
 
@@ -51,12 +54,12 @@ class CustomInputDataset(RasterDataset):
         except:
             pass
 
-        assert (lidar_dsm_index == -1) or (lidar_dtm_index == -1), "Only one of DTM or DSM can be provided in input bands!"
-        lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
-
         bands = kwargs['bands']
 
         if stage == 'train':
+            assert (lidar_dsm_index == -1) or (lidar_dtm_index == -1), "Only one of DTM or DSM can be provided in input bands!"
+            lidar_data_index = max(lidar_dsm_index, lidar_dtm_index)
+        
             assert lidar_data_index != -1, "Either DTM or DSM must be specified as part of inputs!"
 
             # Training labels from LIDAR must be the last channel
@@ -115,7 +118,51 @@ class CustomInputDataset(RasterDataset):
         
         return mean, std
 
-class CustomDataModule(GeoDataModule):
+
+class RandomPatchDataset(Dataset):
+    def __init__(self, bands, datapath, chipsize, roi, len=10000, transform=True):
+        self.bands = bands
+        self.datapath = datapath
+        self.chipsize = chipsize
+        self.transform = transform
+        self.len = len
+        self.roi = roi 
+        
+        # Assuming all the bands have the same transform
+        with rasterio.open(f'{datapath}/final_{bands[0]}.tif') as ds:
+            self.transform = ds.transform
+
+    def __getitem__(self, index):
+        
+        i = np.random.randint(self.roi[0]+1, self.roi[1] - (self.transform[0]*self.chipsize)-1, 1)[0]
+        j = np.random.randint(self.roi[2]+1, self.roi[3] - (abs(self.transform[4])*self.chipsize)-1, 1)[0]
+        window = from_bounds(i, j, i+(self.transform[0]*self.chipsize), 
+                             j+(abs(self.transform[4])*self.chipsize), self.transform)
+        
+        images = []
+        for band in self.bands:
+            with rasterio.open(f'{self.datapath}/final_{band}.tif') as src:
+                images.append(src.read(1, window=window))
+        
+        image = torch.tensor(np.array(images), dtype=torch.float)
+        
+        if self.transform:
+            hflip = random.random() < 0.5
+            vflip = random.random() < 0.5
+            
+            if hflip:
+                image = torch.flip(image, [2])
+                
+            if vflip:
+                image = torch.flip(image, [1])
+            
+        return image
+
+    def __len__(self):
+        return self.len
+
+
+class CustomDataModule(LightningDataModule):
     """
     Custom GeoDataModule for training UNets for DeepDEM
     """
@@ -123,9 +170,7 @@ class CustomDataModule(GeoDataModule):
     generator = torch.Generator().manual_seed(0)
     
     def __init__(self, **kwargs):
-        super().__init__(
-            **kwargs
-        )
+        super().__init__()
         self.aug = None
         self.train_aug = kwargs['train_aug'] if 'train_aug' in kwargs else None
         self.val_aug = kwargs['val_aug'] if 'val_aug' in kwargs else None
@@ -148,46 +193,51 @@ class CustomDataModule(GeoDataModule):
         """
 
         if stage in ["fit", "validate"]:
-            self.dataset = CustomInputDataset(**self.kwargs)
-
-            xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
+            with rasterio.open(f'{self.kwargs['paths']}/final_{self.kwargs['bands'][0]}.tif') as ds:
+                roi = ds.bounds
+                
+            xmin, ymin, xmax, ymax = list(roi)
+            
             y_extent = ymax - ymin
             x_extent = xmax - xmin
             
             # we split the input raster vertically into train and validate regions
             x_split = xmin + self.train_split * x_extent 
 
-            train_roi = BoundingBox(xmin, x_split, ymin, ymax, tmin, tmax)
-            val_roi = BoundingBox(x_split, xmax, ymin, ymax, tmin, tmax)
+            train_roi = [xmin, x_split, ymin, ymax]
+            val_roi = [x_split, xmax, ymin, ymax]
             
-            self.train_sampler = RandomBatchGeoSampler(
-                self.dataset,
-                batch_size=self.kwargs['batch_size'],
-                size=self.kwargs['chip_size'],
+            self.train_dataset = RandomPatchDataset(
+                self.kwargs['bands'],
+                self.kwargs['paths'],
+                chipsize=self.kwargs['chip_size'],
                 roi=train_roi,
+                len=48000,
             ) # type: ignore
 
-            self.val_sampler = RandomBatchGeoSampler(
-                self.dataset,
-                batch_size=self.kwargs['batch_size'],
-                size=self.kwargs['chip_size'],
+            self.val_dataset = RandomPatchDataset(
+                self.kwargs['bands'],
+                self.kwargs['paths'],
+                chipsize=self.kwargs['chip_size'],
                 roi=val_roi,
+                len=12000,
             ) # type: ignore
 
         # We do not currently have a test_step, but write out a test_sampler for future use
         if stage == "test":
-            xmin, xmax, ymin, ymax, tmin, tmax = self.dataset.bounds
+            xmin, ymin, xmax, ymax = list(roi)
             y_extent = ymax - ymin
             x_extent = xmax - xmin
 
-            test_roi = BoundingBox(
-                xmin + 0.8 * x_extent, xmax, ymin + 0.5 * y_extent, ymax, tmin, tmax
-            )
-            self.test_sampler = RandomBatchGeoSampler(
-                self.dataset,
-                batch_size=self.kwargs['batch_size'],
-                size=self.kwargs['chip_size'],
+            test_roi = [
+                xmin + 0.8 * x_extent, xmax, ymin + 0.5 * y_extent, ymax
+            ]
+            self.test_dataset = RandomPatchDataset(
+                self.kwargs['bands'],
+                self.kwargs['paths'],
+                chipsize=self.kwargs['chip_size'],
                 roi=test_roi,
+                len=6000,
             ) # type: ignore
 
     def train_dataloader(self):
@@ -200,12 +250,11 @@ class CustomDataModule(GeoDataModule):
             MisconfigurationException: If :meth:`setup` does not define a
                 'train_dataset'/'train_sampler'
         """
-        if (self.dataset is not None) and (self.train_sampler is not None):
+        if (self.train_dataset is not None):
             return DataLoader(
-                dataset=self.dataset,
-                batch_sampler=self.train_sampler,  # type: ignore
+                dataset=self.train_dataset,
+                batch_size=self.kwargs['batch_size'],
                 num_workers=self.kwargs["num_workers"],
-                collate_fn=self.kwargs["collate_fn"],
                 pin_memory=self.kwargs["cuda"],
                 shuffle=False,
             )
@@ -224,12 +273,11 @@ class CustomDataModule(GeoDataModule):
             MisconfigurationException: If :meth:`setup` does not define a
                 'val_dataset'/'val_sampler'
         """
-        if (self.dataset is not None) and (self.val_sampler is not None):
+        if (self.val_dataset is not None):
             return DataLoader(
-                dataset=self.dataset,  # type: ignore
-                batch_sampler=self.val_sampler,  # type: ignore
+                dataset=self.val_dataset,  # type: ignore
+                batch_size=self.kwargs['batch_size'],
                 num_workers=self.kwargs["num_workers"],
-                collate_fn=self.kwargs["collate_fn"],
                 pin_memory=self.kwargs["cuda"],
                 shuffle=False,
             )
@@ -247,25 +295,14 @@ class CustomDataModule(GeoDataModule):
             MisconfigurationException: If :meth:`setup` does not define a
                 'test_dataset'/'test_sampler'.
         """
-        if (self.dataset is not None) and (self.test_sampler is not None):
+        if (self.test_dataset is not None):
             return DataLoader(
-                dataset=self.dataset,  # type: ignore
-                batch_sampler=self.test_sampler,  # type: ignore
+                dataset=self.test_dataset,  # type: ignore
+                batch_size=self.kwargs['batch_size'],
                 num_workers=self.kwargs["num_workers"],
-                collate_fn=self.kwargs["collate_fn"],
                 pin_memory=self.kwargs["cuda"],
                 shuffle=False,
             )
 
         msg = f"{self.__class__.__name__}.setup must define a 'dataset' and a 'test_sampler'"
         raise MisconfigurationException(msg)
-    
-    def on_after_batch_transfer(self, batch, dataloader_idx):
-
-        if self.trainer.training and self.train_aug:
-            batch['image'] = self.train_aug(batch['image'])
-
-        return batch
-
-    def on_before_batch_transfer(self, batch, dataloader_idx):
-        return batch

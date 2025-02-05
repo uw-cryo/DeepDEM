@@ -2,3 +2,5 @@ outputs/*
 data/*
 scripts/checkpoints/*
 scripts/logs/*
+scripts/wandb/*
+scripts/wandb_files/*
