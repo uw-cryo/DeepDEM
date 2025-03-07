@@ -26,7 +26,7 @@ class CustomInputDataset(RasterDataset):
 
     is_image = True
     separate_files = True
-    filename_glob = 'final_*.tif'
+    filename_glob = 'final_asp_dsm.tif'
     filename_regex = r"final_(?P<band>[a-z_]+)\.tif"
     all_bands = [
         "asp_dsm",
