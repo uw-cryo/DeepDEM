@@ -156,8 +156,7 @@ class DeepDEMRegressionTask(BaseTask):
 
     def training_step(self, *args, **kwargs):
         """Training step"""
-        batch = args[0]
-        x = batch["image"]
+        x = args[0]
         x, y = (
             x[:, :-1, ...],
             x[:, -1, ...].squeeze(),
@@ -176,8 +175,7 @@ class DeepDEMRegressionTask(BaseTask):
 
     def validation_step(self, *args, **kwargs):
         """Validation step"""
-        batch = args[0]
-        x = batch["image"]
+        x = args[0]
         x, y = x[:, :-1, ...], x[:, -1, ...].squeeze()
         batch_size = x.shape[0]
         y_hat = self.forward(x, stage='validation').squeeze()
@@ -193,8 +191,7 @@ class DeepDEMRegressionTask(BaseTask):
 
     def test_step(self, *args, **kwargs):
         """Test step"""
-        batch = args[0]
-        x = batch["image"]
+        x = args[0]
         x, y = x[:, :-1, ...], x[:, -1, ...].squeeze()
         batch_size = x.shape[0]
         y_hat = self.forward(x, stage='test').squeeze()
