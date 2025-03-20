@@ -67,7 +67,7 @@ The code for the model dataloader is given in `scripts/dataset_modules.py`. This
 
 ### Support for other datasets
 The full workflow can be used to train new models and generate inferences for arbitrary inputs, as long as all necessary input layers are available (orthorectified images, initial DSM, triangulation error). The user can use the numbered workflow of the Jupyter notebooks listed above and pipe the processed data through the model. If performing only inferences, the `1a_TrainDeepDEM.ipynb` notebook should be skipped, with only the path to weights from a trained model being provided in `1b_Generate_Inferences.ipynb`
-=======
+
 ### Before training new models
 It is recommended that users examine the _processed_ input rasters (e.g. plotting using matplotlib, loading in QGIS, calculate statistics) ahead of running the training script. This is to ensure that all of the datasets are correctly projected and aligned, and will serve as a sanity check before trying to train a model.
 
