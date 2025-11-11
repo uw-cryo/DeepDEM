@@ -1,0 +1,43 @@
+{
+    "dataset": {
+        "name": "baker_2015",
+        "processed_data_dir": "/mnt/1.0_TB_VOLUME/ayushg12/baker_datasets/WV01_20150911_1020010042D39D00_1020010043455300/processed_rasters",
+        "raw_data_dir": "/mnt/1.0_TB_VOLUME/ayushg12/baker_datasets/WV01_20150911_1020010042D39D00_1020010043455300/original_rasters",
+        "common_file_dir": "/mnt/1.0_TB_VOLUME/ayushg12/baker_datasets/common_files",
+        "gsf_values": {
+            "64": 9.467,
+            "128": 18.006,
+            "256": 34.035,
+            "512": 62.33,
+            "1024": 110.91
+        }
+    },
+    "model": {
+        "bands": [
+            "asp_dsm",
+            "ortho_channel1",
+            "ortho_channel2",
+            "nodata_mask",
+            "triangulation_error",
+            "lidar_data"
+        ],
+        "model_type": "smp-unet",
+        "model_encoder": "resnet18"
+    },
+    "training_settings": {
+        "batch_size": 24,
+        "chip_size": 256,
+        "channel_swap": true,
+        "num_workers": 12,
+        "train_split": 0.65,
+        "max_epochs": 300,
+        "lr": 0.0005,
+        "lr_scheduler": true,
+        "lr_scheduler_scale_factor": 0.5,
+        "lr_scheduler_patience": 50,
+        "early_stopping": true,
+        "earlystopping_patience": 75,
+        "do_BN": false,
+        "bias_conv_layer": false
+    }
+}
