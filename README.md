@@ -40,7 +40,7 @@ DeepDEM primarily uses [PyTorch-lightning](https://github.com/Lightning-AI/pytor
 
 ### Data prerequisites
 It is expected that user has access to Level-1B panchromatic (single channel) stereo satellite imagery, which has been processed to produce a DEM and orthorectified images, along with a map of [triangulation error](https://stereopipeline.readthedocs.io/en/latest/correlation.html#triangulation-error). 
-The `0_Download_LIDAR_data.ipynb` notebook can be used to download and process the [USGS 3DEP lidar data](https://www.usgs.gov/3d-elevation-program) to prepare the necessary DSM/DTM rasters for model training and validation. The ground truth for the results demonstrated here are obtained from the [3DEP LIDAR survey of Mt Baker](https://www.sciencebase.gov/catalog/item/58518b0ee4b0f99207c4f12c) acquired from 2015-08-26 to 2015-09-27.
+We recommend using utlities from the [`lidar-tools`](https://github.com/uw-cryo/lidar_tools) repository to prepare the [USGS 3DEP lidar data](https://www.usgs.gov/3d-elevation-program) for model training and validation. This supsersedes the previous approach in the  `0_Download_LIDAR_data.ipynb` notebook in the DeepDEM repository. The ground truth for the results demonstrated here are obtained from the [3DEP LIDAR survey of Mt Baker](https://www.sciencebase.gov/catalog/item/58518b0ee4b0f99207c4f12c) acquired from 2015-08-26 to 2015-09-27.
 
 ### Notebooks
 The notebooks are labeled in the sequence of execution for arbitrary inputs. The first cells contain file paths to the relevant datasets. 
@@ -75,7 +75,7 @@ It is recommended that users examine the _processed_ input rasters (e.g. plottin
 Code in this repository can be used to train new models, as well as generate inferences on datasets which contain the necessary input layers (orthorectified imagery, initial DSM estimate, triangulation errors). The user can use the numbered workflow of the Jupyter notebooks listed above and pipe the processed data through the model. If performing only inferences, the `1a_TrainDeepDEM.ipynb` notebook should be skipped, with only the path to weights from a trained model being provided in `1b_Generate_Inferences.ipynb`
 
 ### Trained models
-DeepDEM model weights trained using the 2015-09-15 WorldView images and 3DEP LIDAR data for Mt. Baker, WA are available... 
+DeepDEM model weights trained using the 2015-09-15 WorldView images and 3DEP LIDAR data for Mt. Baker, WA will be published upon final acceptance of the accompanying open access manuscript documenting the DeepDEM workflow and performance.
 
 Training metadata is stored along with the model weights in the checkpoint files within the `model_kwargs` dictionary. For example, the following code snippet shows the bands and path for training data for a specific model: 
 
