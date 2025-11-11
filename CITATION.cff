@@ -1,0 +1,18 @@
+abstract: 'DeepDEM: DEM refinement using deep learning'
+authors:
+- family-names: Karthik Venkataramani
+- family-names: Seth Vanderwilt
+- affiliation: NASA Goddard Space Flight Center | University of Maryland ESSIC
+  family-names: Shashank Bhushan
+- affiliation: University of Washington, Shean Geoconsulting
+  family-names: David Shean
+cff-version: 1.2.0
+date-released: '2024-12-03'
+doi: 10.5281/zenodo.14270050
+license:
+- cc-by-4.0
+message: If you use this software, please cite it using the metadata from this file.
+repository-code: https://github.com/uw-cryo/DeepDEM/tree/v0.1
+title: 'uw-cryo/DeepDEM: Initial Zenodo Release'
+type: software
+version: v0.1
