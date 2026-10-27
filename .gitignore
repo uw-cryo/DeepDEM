@@ -4,3 +4,6 @@ scripts/checkpoints/*
 scripts/logs/*
 scripts/wandb/*
 scripts/wandb_files/*
+
+# generated paper figures
+notebooks/fig_dump/
